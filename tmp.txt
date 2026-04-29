@@ -1,17 +1,53 @@
+Invoke-RestMethod -Method Post `
+  -Uri "https://vygiutowqdzxuqagnidj.supabase.co/auth/v1/token?grant_type=password" `
+  -Headers @{
+    apikey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ5Z2l1dG93cWR6eHVxYWduaWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMjA1NDQsImV4cCI6MjA5Mjc5NjU0NH0.pm4t5QfH0ayYrrUjIR4XGcpmqPbCoXe--mLWRToy7RA";
+    "Content-Type" = "application/json"
+  } `
+  -Body '{
+    "email": "test@inf.elte.hu",
+    "password": "qwe123"
+  }'
+
+
+
+
+eyJhbGciOiJFUzI1NiIsImtpZCI6IjQ4NzlhNmQyLTUyMDMtNDUyOC05ZTk5LTg0ZTVlZDcwNjVkNSIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3Z5Z2l1dG93cWR6eHVxYWduaWRqLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJmOTc0NmExMy1iNjdlLTRjYWUtYWZlOS03NWE2NGQ5OThjNjgiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzc3NDk4NTEzLCJpYXQiOjE3Nzc0OTQ5MTMsImVtYWlsIjoidGVzdEBpbmYuZWx0ZS5odSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWxfdmVyaWZpZWQiOnRydWV9LCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImFhbCI6ImFhbDEiLCJhbXIiOlt7Im1ldGhvZCI6InBhc3N3b3JkIiwidGltZXN0YW1wIjoxNzc3NDk0OTEzfV0sInNlc3Npb25faWQiOiIxN2Y0ZDYzYS1mNjNlLTRkODItYTM4MC1lYjkxZGE3OTQ4MzciLCJpc19hbm9ueW1vdXMiOmZhbHNlfQ.70LMIQFTuYDuDSgPCh9uTIZignDIPvwoLWoU06lOJRXyrXv0KzZSVbZ31l8iNzcJXVH0P17A5zkpJHNiM1yrVg
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import models
 import schemas
-from authorization import auth
+from authorization import auth, get_current_user
 from database import engine, get_db
 from models import UserRole
 import uuid
 import time
 from datetime import datetime, timezone, timedelta
 import hashlib
-import io, csv
-from fastapi.responses import Response
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -118,7 +154,7 @@ def get_qr_token(sessionId: str, db: Session = Depends(get_db)):
     }
 
 @app.post("/attendance", response_model=schemas.ScanResponse)
-def submit_scan(scan_req: schemas.ScanRequest, request: Request, db: Session = Depends(get_db)):
+def submit_scan(scan_req: schemas.ScanRequest, request: Request, db: Session = Depends(get_db),  user = Depends(get_current_user)):
     client_ip = request.client.host
 
     sessions = db.query(models.Session).filter(models.Session.active == True).all()
@@ -154,7 +190,7 @@ def submit_scan(scan_req: schemas.ScanRequest, request: Request, db: Session = D
 
     log = models.AttendanceLog(
         session_id=valid_session.id,
-        user_id=None,
+        user_id=user["user_id"],
         device_id=scan_req.deviceToken,
         ip_address=client_ip,
         qr_timestamp=datetime.now(timezone.utc),
@@ -172,47 +208,4 @@ def submit_scan(scan_req: schemas.ScanRequest, request: Request, db: Session = D
 
 @app.get("/sessions/{sessionId}/export")
 def export_attendance(sessionId: str, db: Session = Depends(get_db)):
-    session = db.query(models.Session).filter(models.Session.id == sessionId).first()
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-
-    # LEFT JOIN (IMPORTANT FIX)
-    rows = (
-        db.query(models.AttendanceLog, models.User)
-        .outerjoin(models.User, models.AttendanceLog.user_id == models.User.id)
-        .filter(models.AttendanceLog.session_id == sessionId)
-        .all()
-    )
-
-    output = io.StringIO()
-    writer = csv.writer(output)
-
-    # headers = separate columns
-    writer.writerow([
-        "User ID",
-        "User name",
-        "Device ID",
-        "IP Address",
-        "Timestamp",
-        "Status"
-    ])
-
-    for log, user in rows:
-        writer.writerow([
-            str(user.id) if user else "",
-            user.name if user else "",
-            log.device_id,
-            log.ip_address,
-            log.timestamp,
-            log.status
-        ])
-
-    output.seek(0)
-
-    return Response(
-        content=output.getvalue(),
-        media_type="text/csv",
-        headers={
-            "Content-Disposition": f"attachment; filename=attendance_{sessionId}.csv"
-        }
-    )
+    return {"message": "CSV File Download will trigger here"}

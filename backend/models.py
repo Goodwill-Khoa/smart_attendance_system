@@ -1,15 +1,20 @@
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Enum
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from datetime import datetime
 from database import Base
+import enum
+
+class UserRole(str, enum.Enum):
+    STUDENT = "STUDENT"
+    TEACHER = "TEACHER"
 
 class User(Base):
     __tablename__ = "users"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String, unique=True, nullable=False)
-    name = Column(String, nullable=True)
-    role = Column(String, nullable=False, default="STUDENT") # 'STUDENT' or 'TEACHER'
+    name = Column(String, nullable=False)
+    role = Column(Enum(UserRole, name="user_role"), nullable=False, default=UserRole.STUDENT)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class Course(Base):

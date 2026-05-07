@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import { Html5Qrcode } from "html5-qrcode";
+import { useLocation } from "react-router-dom";
 
 export default function Scan({ user }) {
   const navigate = useNavigate();
@@ -9,6 +10,9 @@ export default function Scan({ user }) {
   const [result, setResult] = useState("");
   const [status, setStatus] = useState("idle"); // idle | loading | success | error
   const [scanned, setScanned] = useState(false); 
+
+  const location = useLocation();
+  const { courseId, courseName, sessionId } = location.state || {};
 
   const BASE_URL ="mock"  //debug
   //const BASE_URL = "https://test.com"; 

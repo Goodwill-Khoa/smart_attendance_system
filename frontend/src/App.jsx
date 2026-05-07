@@ -7,6 +7,8 @@ import Login from "./pages/Login";
 import Scan from "./pages/Scan";
 import Teacher from "./pages/Teacher";
 import TeacherLogin from "./pages/TeacherLogin";
+import TeacherCourses from "./pages/TeacherCourses";
+import StudentCourses from "./pages/StudentCourses";
 
 function ProtectedRoute({ user, children }) {
   if (!user) return <Navigate to="/login" />;
@@ -89,7 +91,7 @@ export default function App() {
         {/* 首页：已登录自动跳 scan */}
         <Route
           path="/"
-          element={user ? <Navigate to="/scan" /> : <Home />}
+          element={user ? <Navigate to="/courses" /> : <Home />}
         />
 
         {/* 登录页 */}
@@ -98,8 +100,20 @@ export default function App() {
         {/* 教师登录页 */}
         <Route path="/teacher-login" element={<TeacherLogin />} />
 
-        {/* 教师页 */}
+        {/* 教师课程 */}
+        <Route
+          path="/teacher-courses"
+          element={<TeacherCourses />}
+        />
+
+        {/* 教师二维码 */}
         <Route path="/teacher" element={<Teacher />} />
+
+        {/* 学生课程 */}
+        <Route
+          path="/courses"
+          element={<StudentCourses user={user} />}
+        />
 
         {/* 扫码页（受保护） */}
         <Route

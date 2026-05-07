@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import { FcGoogle } from "react-icons/fc";
 import { FaMicrosoft } from "react-icons/fa";
+import { useEffect } from "react";
 
 export default function Login() {
   const navigate = useNavigate();

@@ -10,7 +10,7 @@ export default function TeacherLogin() {
 
   const handleLogin = () => {
     if (email === "teacher@elte.hu" && password === "123456") {
-      navigate("/teacher");
+      navigate("/teacher-courses");
     } else {
       setError("Invalid credentials");
     }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
+import { useLocation } from "react-router-dom";
 
 export default function Teacher() {
   const [qrData, setQrData] = useState("");
@@ -45,6 +46,42 @@ export default function Teacher() {
       setSessionId(data.sessionId);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  // end session
+  const location = useLocation();
+  const { courseName } = location.state || {};
+  const handleEndSession = async () => {
+    try {
+      // ===== MOCK =====
+      if (BASE_URL === "mock") {
+        navigate("/teacher-courses");
+        return;
+      }
+
+      const jwt = await getJWT();
+
+      const res = await fetch(
+        `${BASE_URL}/sessions/${sessionId}/end`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${jwt}`,
+          },
+        }
+      );
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        navigate("/teacher-courses");
+      } else {
+        alert(data.message || "Failed to end session.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Network error.");
     }
   };
 
@@ -221,6 +258,22 @@ export default function Teacher() {
               >
                 Refresh QR
               </button>
+
+              <button
+                onClick={handleEndSession}
+                style={{
+                  marginTop: "16px",
+                  padding: "14px 30px",
+                  borderRadius: "20px",
+                  background: "#c62828",
+                  color: "white",
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                End Session
+              </button>
+              
             </div>
 
             <p style={{ marginTop: "15px", fontSize: "13px", color: "#555" }}>

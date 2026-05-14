@@ -11,6 +11,7 @@ export default function StudentCourses({ user }) {
 
   // mock / real
   const BASE_URL = "mock";
+  //const BASE_URL = "http://127.0.0.1:8000";
 
   // 获取 JWT
   const getJWT = async () => {

@@ -5,8 +5,9 @@ import { useLocation } from "react-router-dom";
 
 export default function Teacher() {
   const [qrData, setQrData] = useState("");
-  const [sessionId, setSessionId] = useState(null);
+  const { sessionId, courseName } = location.state || {};
   const navigate = useNavigate();
+  const location = useLocation();
 
   //  mock / real 切换
   const BASE_URL = "mock"; // debug
@@ -17,72 +18,6 @@ export default function Teacher() {
     const { data } = await supabase.auth.getSession();
     console.log("JWT:", data.session?.access_token); //debug
     return data.session?.access_token;
-  };
-
-  //  创建 session
-  const createSession = async () => {
-    if (BASE_URL === "mock") {
-      const fakeId = "mock-session-" + Date.now();
-      console.log("Generated session:", fakeId); //debug
-      setSessionId(fakeId);
-      return;
-    }
-
-    try {
-      const jwt = await getJWT();
-
-      const res = await fetch(`${BASE_URL}/sessions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${jwt}`,
-        },
-        body: JSON.stringify({
-          name: "Lecture " + new Date().toLocaleString(),
-        }),
-      });
-
-      const data = await res.json();
-      setSessionId(data.sessionId);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // end session
-  const location = useLocation();
-  const { courseName } = location.state || {};
-  const handleEndSession = async () => {
-    try {
-      // ===== MOCK =====
-      if (BASE_URL === "mock") {
-        navigate("/teacher-courses");
-        return;
-      }
-
-      const jwt = await getJWT();
-
-      const res = await fetch(
-        `${BASE_URL}/sessions/${sessionId}/end`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${jwt}`,
-          },
-        }
-      );
-
-      const data = await res.json();
-
-      if (res.ok && data.success) {
-        navigate("/teacher-courses");
-      } else {
-        alert(data.message || "Failed to end session.");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Network error.");
-    }
   };
 
   //  获取 QR token
@@ -111,12 +46,7 @@ export default function Teacher() {
       console.error(err);
     }
   };
-
-  //  初始化 session
-  useEffect(() => {
-    createSession();
-  }, []);
-
+  
   //  自动刷新 QR
   useEffect(() => {
     if (!sessionId) return;
@@ -133,65 +63,13 @@ export default function Teacher() {
     navigate("/", { replace: true });
   };
 
-  //  导出
+  // export csv
   const handleExport = () => {
-      // mock attendance data
-      const attendanceData = [
-        {
-          name: "Alice",
-          email: "alice@elte.hu",
-          course: "English",
-          time: "2026-05-14 09:01",
-        },
-        {
-          name: "Bob",
-          email: "bob@elte.hu",
-          course: "English",
-          time: "2026-05-14 09:03",
-        },
-        {
-          name: "Charlie",
-          email: "charlie@elte.hu",
-          course: "English",
-          time: "2026-05-14 09:05",
-        },
-      ];
-
-      // CSV header
-      const headers = ["Name", "Email", "Course", "Time"];
-
-      // CSV rows
-      const rows = attendanceData.map((item) => [
-        item.name,
-        item.email,
-        item.course,
-        item.time,
-      ]);
-
-      // Combine CSV
-      const csvContent = [
-        headers.join(","),
-        ...rows.map((row) => row.join(",")),
-      ].join("\n");
-
-      // Create Blob
-      const blob = new Blob([csvContent], {
-        type: "text/csv;charset=utf-8;",
-      });
-
-      // Create download link
-      const url = URL.createObjectURL(blob);
-
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "attendance.csv");
-
-      document.body.appendChild(link);
-
-      link.click();
-
-      document.body.removeChild(link);
-    };
+    window.open(
+      `${BASE_URL}/sessions/${sessionId}/export`,
+      "_blank"
+    );
+  };
 
   return (
     <div

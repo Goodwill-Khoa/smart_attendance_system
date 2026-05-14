@@ -15,7 +15,7 @@ export default function Scan({ user }) {
   const { courseId, courseName, sessionId } = location.state || {};
 
   const BASE_URL ="mock"  //debug
-  //const BASE_URL = "https://test.com"; 
+//const BASE_URL = "http://127.0.0.1:8000";
 
   const getJWT = async () => {
     const { data } = await supabase.auth.getSession();
@@ -74,7 +74,9 @@ export default function Scan({ user }) {
         }),
       });
 
+      const data = await res.json();
       console.log("STATUS:", res.status);
+      console.log("RESPONSE:", data);
 
       // 401
       if (res.status === 401) {
@@ -84,24 +86,14 @@ export default function Scan({ user }) {
         return;
       }
 
-      //  403
-      if (res.status === 403) {
+      //  duplicate scan 400
+      if (res.status === 400) {
         setStatus("error");
         setResult(
           "Error: This device has already been used to record attendance for this session."
         );
         return;
       }
-
-      // 400
-      if (res.status === 400) {
-        setStatus("error");
-        setResult(data.message || "Invalid QR code.");
-        return;
-      }
-
-      const data = await res.json();
-      console.log("RESPONSE:", data);
 
       if (res.ok && data.success) {
         setStatus("success");

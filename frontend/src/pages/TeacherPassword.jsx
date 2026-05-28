@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
+import BaseLayout, { responsiveInputStyle, responsiveButtonStyle } from "../components/BaseLayout";
 import { getApiBaseUrl } from "../services/apiBase";
 
 export default function TeacherPassword() {
@@ -56,118 +57,83 @@ export default function TeacherPassword() {
     }
   };
 
+  const headerActions = [
+    {
+      label: "Back",
+      onClick: () => navigate("/teacher-courses"),
+      style: {
+        border: "1px solid white",
+        background: "rgba(0,0,0,0.35)",
+        color: "white",
+      }
+    }
+  ];
+
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundImage: "url('/ELTELogo.png')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        position: "relative",
-      }}
+    <BaseLayout
+      headerTitle="Update Password"
+      headerActions={headerActions}
+      maxWidth="460px"
+      backgroundColor="rgba(0,0,0,0.25)"
     >
-      <div
+      <p style={{ color: "#4b5563", marginTop: 0, marginBottom: "18px", fontSize: "clamp(12px, 1.8vw, 14px)", textAlign: "center" }}>
+        Change your password after login or after opening a reset email link.
+      </p>
+
+      <input
+        type="password"
+        placeholder="New password"
+        value={newPassword}
+        onChange={(e) => setNewPassword(e.target.value)}
         style={{
-          position: "absolute",
-          width: "100%",
-          height: "100%",
-          background: "rgba(0,0,0,0.25)",
+          ...responsiveInputStyle,
+          marginBottom: "12px",
         }}
       />
 
-      <div
+      <input
+        type="password"
+        placeholder="Confirm new password"
+        value={confirmPassword}
+        onChange={(e) => setConfirmPassword(e.target.value)}
         style={{
-          position: "relative",
-          zIndex: 10,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          minHeight: "100vh",
-          padding: "20px",
+          ...responsiveInputStyle,
+          marginBottom: "14px",
+        }}
+      />
+
+      {error && (
+        <p style={{ color: "#b91c1c", marginTop: 0, marginBottom: "10px", fontSize: "clamp(12px, 1.8vw, 14px)", textAlign: "center" }}>
+          {error}
+        </p>
+      )}
+
+      {infoMessage && (
+        <p style={{ color: "#166534", marginTop: 0, marginBottom: "10px", fontSize: "clamp(12px, 1.8vw, 14px)", textAlign: "center" }}>
+          {infoMessage}
+        </p>
+      )}
+
+      <button
+        onClick={handleUpdatePassword}
+        disabled={saving}
+        style={{
+          ...responsiveButtonStyle("#111827", "white"),
+          marginBottom: "10px",
         }}
       >
-        <div
-          style={{
-            width: "100%",
-            maxWidth: "460px",
-            padding: "32px",
-            borderRadius: "22px",
-            background: "rgba(255,255,255,0.94)",
-            backdropFilter: "blur(8px)",
-            boxShadow: "0 20px 60px rgba(0,0,0,0.28)",
-          }}
-        >
-          <h2 style={{ marginTop: 0, marginBottom: "8px", color: "#111827" }}>
-            Lecturer Password
-          </h2>
-          <p style={{ color: "#4b5563", marginTop: 0, marginBottom: "18px" }}>
-            Change your password after login or after opening a reset email link.
-          </p>
+        {saving ? "Saving..." : "Update Password"}
+      </button>
 
-          <input
-            type="password"
-            placeholder="New password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "12px",
-              marginBottom: "12px",
-              borderRadius: "10px",
-              border: "1px solid #d1d5db",
-            }}
-          />
-
-          <input
-            type="password"
-            placeholder="Confirm new password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "12px",
-              marginBottom: "14px",
-              borderRadius: "10px",
-              border: "1px solid #d1d5db",
-            }}
-          />
-
-          {error && <p style={{ color: "#b91c1c", marginTop: 0 }}>{error}</p>}
-          {infoMessage && <p style={{ color: "#166534", marginTop: 0 }}>{infoMessage}</p>}
-
-          <button
-            onClick={handleUpdatePassword}
-            disabled={saving}
-            style={{
-              width: "100%",
-              padding: "12px",
-              borderRadius: "14px",
-              border: "none",
-              background: "#111827",
-              color: "white",
-              cursor: "pointer",
-              marginBottom: "10px",
-            }}
-          >
-            {saving ? "Saving..." : "Update Password"}
-          </button>
-
-          <button
-            onClick={() => navigate("/teacher-courses")}
-            style={{
-              width: "100%",
-              padding: "12px",
-              borderRadius: "14px",
-              border: "1px solid #9ca3af",
-              background: "white",
-              color: "#111827",
-              cursor: "pointer",
-            }}
-          >
-            Back to Teacher Dashboard
-          </button>
-        </div>
-      </div>
-    </div>
+      <button
+        onClick={() => navigate("/teacher-courses")}
+        style={{
+          ...responsiveButtonStyle("white", "#111827"),
+          border: "1px solid #9ca3af",
+        }}
+      >
+        Back to Dashboard
+      </button>
+    </BaseLayout>
   );
 }

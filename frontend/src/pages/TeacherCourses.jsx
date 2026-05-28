@@ -392,26 +392,29 @@ export default function TeacherCourses({ user }) {
           style={{
             display: "flex",
             justifyContent: "space-between",
-            padding: "clamp(20px,4vw,40px) 5vw",
+            padding: "clamp(16px, 3vw, 40px) clamp(12px, 4vw, 5vw)",
             color: "white",
             alignItems: "center",
+            flexWrap: "wrap",
+            gap: "12px",
           }}
         >
-          <div style={{ fontSize: "clamp(18px,4vw,24px)", fontWeight: "bold" }}>
+          <div style={{ fontSize: "clamp(18px, 4vw, 24px)", fontWeight: "bold", minWidth: "100px" }}>
             Teacher Panel
           </div>
 
-          <div style={{ display: "flex", gap: "10px" }}>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" }}>
             <button
               onClick={() => navigate("/teacher-password")}
               style={{
-                padding: "12px 18px",
+                padding: "clamp(8px, 1.5vw, 12px) clamp(12px, 2.5vw, 18px)",
                 borderRadius: "20px",
                 border: "1px solid #d1d5db",
                 background: "white",
                 color: "#111827",
                 cursor: "pointer",
-                fontSize: "15px",
+                fontSize: "clamp(13px, 2vw, 15px)",
+                whiteSpace: "nowrap",
               }}
             >
               Change Password
@@ -420,13 +423,14 @@ export default function TeacherCourses({ user }) {
             <button
               onClick={handleLogout}
               style={{
-                padding: "12px 24px",
+                padding: "clamp(8px, 1.5vw, 12px) clamp(12px, 2.5vw, 24px)",
                 borderRadius: "20px",
                 border: "none",
                 background: "black",
                 color: "white",
                 cursor: "pointer",
-                fontSize: "16px",
+                fontSize: "clamp(13px, 2vw, 16px)",
+                whiteSpace: "nowrap",
               }}
             >
               Logout
@@ -440,18 +444,19 @@ export default function TeacherCourses({ user }) {
             justifyContent: "center",
             alignItems: "center",
             minHeight: "80vh",
-            padding: "20px",
+            padding: "clamp(12px, 3vw, 20px)",
           }}
         >
           <div
             style={{
               width: "100%",
               maxWidth: "700px",
-              padding: "40px",
+              padding: "clamp(20px, 5vw, 40px)",
               borderRadius: "24px",
               background: "rgba(255,255,255,0.92)",
               backdropFilter: "blur(12px)",
               boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+              overflowX: "hidden",
             }}
           >
             <h2 style={{ textAlign: "center", marginBottom: "10px" }}>Teacher Dashboard</h2>
@@ -470,12 +475,13 @@ export default function TeacherCourses({ user }) {
                 gridTemplateColumns: "1fr auto",
                 gap: "12px",
                 marginBottom: "14px",
+                gridAutoFlow: "row",
               }}
             >
               <select
                 value={selectedSemester}
                 onChange={(e) => setSelectedSemester(e.target.value)}
-                style={{ padding: "12px", borderRadius: "10px", border: "1px solid #ccc", color: "#111", fontWeight: 600 }}
+                style={{ padding: "clamp(10px, 2vw, 12px)", borderRadius: "10px", border: "1px solid #ccc", color: "#111", fontWeight: 600, fontSize: "clamp(14px, 2vw, 16px)" }}
               >
                 {semesters.map((semester) => (
                   <option key={semester} value={semester}>
@@ -491,11 +497,13 @@ export default function TeacherCourses({ user }) {
                   border: "1px solid #222",
                   background: "#fff",
                   color: "#222",
-                  padding: "0 14px",
+                  padding: "clamp(8px, 2vw, 10px) clamp(12px, 2vw, 14px)",
                   cursor: "pointer",
+                  fontSize: "clamp(13px, 1.8vw, 15px)",
+                  whiteSpace: "nowrap",
                 }}
               >
-                {showManagePanel ? "Hide Manage" : "Manage Courses"}
+                {showManagePanel ? "Hide" : "Manage"}
               </button>
             </div>
 
@@ -503,7 +511,7 @@ export default function TeacherCourses({ user }) {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 120px 1fr auto auto",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
                   gap: "10px",
                   marginBottom: "18px",
                 }}
@@ -512,12 +520,12 @@ export default function TeacherCourses({ user }) {
                   value={newCourseName}
                   onChange={(e) => setNewCourseName(e.target.value)}
                   placeholder="Request course name"
-                  style={{ padding: "10px", borderRadius: "10px", border: "1px solid #ccc" }}
+                  style={{ padding: "clamp(8px, 2vw, 10px)", borderRadius: "10px", border: "1px solid #ccc", fontSize: "clamp(13px, 1.8vw, 14px)" }}
                 />
                 <select
                   value={newCourseType}
                   onChange={(e) => setNewCourseType(e.target.value)}
-                  style={{ padding: "10px", borderRadius: "10px", border: "1px solid #ccc", color: "#111", fontWeight: 600 }}
+                  style={{ padding: "clamp(8px, 2vw, 10px)", borderRadius: "10px", border: "1px solid #ccc", color: "#111", fontWeight: 600, fontSize: "clamp(13px, 1.8vw, 14px)" }}
                 >
                   <option value="L">L</option>
                   <option value="Pr">Pr</option>
@@ -528,7 +536,7 @@ export default function TeacherCourses({ user }) {
                   value={newCourseCode}
                   onChange={(e) => setNewCourseCode(e.target.value)}
                   placeholder="Optional request code"
-                  style={{ padding: "10px", borderRadius: "10px", border: "1px solid #ccc" }}
+                  style={{ padding: "clamp(8px, 2vw, 10px)", borderRadius: "10px", border: "1px solid #ccc", fontSize: "clamp(13px, 1.8vw, 14px)" }}
                 />
                 <button
                   onClick={handleAddCourse}
@@ -538,8 +546,10 @@ export default function TeacherCourses({ user }) {
                     borderRadius: "10px",
                     background: "#1f6f3f",
                     color: "white",
-                    padding: "0 14px",
+                    padding: "clamp(8px, 2vw, 10px) clamp(10px, 1.5vw, 14px)",
                     cursor: "pointer",
+                    fontSize: "clamp(12px, 1.8vw, 14px)",
+                    whiteSpace: "nowrap",
                   }}
                 >
                   Add From DB
@@ -549,10 +559,11 @@ export default function TeacherCourses({ user }) {
                   style={{
                     border: "1px solid #a00",
                     borderRadius: "10px",
-                    padding: "10px 14px",
+                    padding: "clamp(8px, 2vw, 10px) clamp(10px, 1.5vw, 14px)",
                     background: "#fff",
                     color: "#a00",
                     cursor: "pointer",
+                    fontSize: "clamp(12px, 1.8vw, 14px)",
                   }}
                 >
                   Remove
@@ -560,7 +571,7 @@ export default function TeacherCourses({ user }) {
                 <select
                   value={selectedCatalogCourseId}
                   onChange={(e) => setSelectedCatalogCourseId(e.target.value)}
-                  style={{ padding: "10px", borderRadius: "10px", border: "1px solid #ccc", color: "#111", fontWeight: 600, gridColumn: "1 / span 3" }}
+                  style={{ padding: "clamp(8px, 2vw, 10px)", borderRadius: "10px", border: "1px solid #ccc", color: "#111", fontWeight: 600, fontSize: "clamp(13px, 1.8vw, 14px)", gridColumn: "1 / -1" }}
                 >
                   <option value="">Select from DB catalog</option>
                   {catalogCourses.map((course) => (
@@ -574,11 +585,12 @@ export default function TeacherCourses({ user }) {
                   style={{
                     border: "1px solid #10316b",
                     borderRadius: "10px",
-                    padding: "10px 14px",
+                    padding: "clamp(8px, 2vw, 10px) clamp(10px, 1.5vw, 14px)",
                     background: "#fff",
                     color: "#10316b",
                     cursor: "pointer",
-                    gridColumn: "4 / span 2",
+                    fontSize: "clamp(12px, 1.8vw, 14px)",
+                    gridColumn: "1 / -1",
                   }}
                 >
                   Request DB Approval
@@ -595,12 +607,13 @@ export default function TeacherCourses({ user }) {
                   onChange={(e) => setSelectedCourseId(e.target.value)}
                   style={{
                     width: "100%",
-                    padding: "12px",
+                    padding: "clamp(10px, 2vw, 12px)",
                     borderRadius: "10px",
                     border: "1px solid #ccc",
                     background: "#fff",
                     color: "#111",
                     fontWeight: 600,
+                    fontSize: "clamp(13px, 1.8vw, 16px)",
                   }}
                 >
                   <option value="">Select course</option>
@@ -640,7 +653,7 @@ export default function TeacherCourses({ user }) {
                     </button>
 
                     <div style={{ marginTop: "14px", borderTop: "1px solid #e5e7eb", paddingTop: "12px" }}>
-                      <div style={{ fontSize: "13px", color: "#374151", marginBottom: "8px", fontWeight: 600 }}>
+                      <div style={{ fontSize: "clamp(12px, 1.8vw, 13px)", color: "#374151", marginBottom: "8px", fontWeight: 600 }}>
                         Upload registered students (CSV)
                       </div>
                       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
@@ -649,7 +662,7 @@ export default function TeacherCourses({ user }) {
                           type="file"
                           accept=".csv,text/csv"
                           onChange={(e) => setRosterFile(e.target.files?.[0] || null)}
-                          style={{ maxWidth: "330px" }}
+                          style={{ maxWidth: "100%", fontSize: "clamp(12px, 1.8vw, 14px)" }}
                         />
                         <button
                           onClick={handleUploadRoster}
@@ -657,18 +670,20 @@ export default function TeacherCourses({ user }) {
                           style={{
                             border: "1px solid #1f6f3f",
                             borderRadius: "10px",
-                            padding: "8px 12px",
+                            padding: "clamp(6px, 1.5vw, 8px) clamp(10px, 2vw, 12px)",
                             background: "white",
                             color: "#1f6f3f",
                             cursor: "pointer",
                             fontWeight: 600,
+                            fontSize: "clamp(12px, 1.8vw, 14px)",
+                            whiteSpace: "nowrap",
                           }}
                         >
-                          {uploadingRoster ? "Uploading..." : "Upload Student List"}
+                          {uploadingRoster ? "Uploading..." : "Upload"}
                         </button>
                       </div>
                       {rosterSummary && (
-                        <div style={{ marginTop: "8px", color: "#14532d", fontSize: "13px" }}>{rosterSummary}</div>
+                        <div style={{ marginTop: "8px", color: "#14532d", fontSize: "clamp(12px, 1.8vw, 13px)" }}>{rosterSummary}</div>
                       )}
                     </div>
                   </div>

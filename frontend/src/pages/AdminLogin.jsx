@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
+import BaseLayout, { responsiveInputStyle, responsiveButtonStyle } from "../components/BaseLayout";
 import { getApiBaseUrl } from "../services/apiBase";
 
 export default function AdminLogin() {
@@ -63,133 +64,73 @@ export default function AdminLogin() {
     }
   };
 
+  const headerActions = [
+    {
+      label: "Home",
+      onClick: () => navigate("/home"),
+      style: {
+        border: "1px solid white",
+        background: "rgba(0,0,0,0.35)",
+        color: "white",
+      }
+    }
+  ];
+
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundImage: "url('/ELTELogo.png')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        position: "relative",
-      }}
+    <BaseLayout
+      headerTitle="Admin Login"
+      headerActions={headerActions}
+      maxWidth="420px"
+      backgroundColor="rgba(0,0,0,0.3)"
     >
-      <div
+      <p style={{ color: "#4b5563", fontSize: "clamp(13px, 1.8vw, 14px)", marginTop: 0, marginBottom: "18px", textAlign: "center" }}>
+        Uses the same Supabase username and password flow as the teacher login.
+      </p>
+
+      <input
+        type="email"
+        placeholder="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
         style={{
-          position: "absolute",
-          width: "100%",
-          height: "100%",
-          background: "rgba(0,0,0,0.3)",
+          ...responsiveInputStyle,
+          marginBottom: "15px",
         }}
       />
 
-      <div style={{ position: "relative", zIndex: 10, minHeight: "100vh" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            padding: "24px 5vw 0",
-          }}
-        >
-          <button
-            onClick={() => navigate("/home")}
-            style={{
-              padding: "10px 18px",
-              borderRadius: "18px",
-              border: "1px solid white",
-              background: "rgba(0,0,0,0.35)",
-              color: "white",
-              cursor: "pointer",
-              fontWeight: 600,
-            }}
-          >
-            Home
-          </button>
-        </div>
+      <input
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        style={{
+          ...responsiveInputStyle,
+          marginBottom: "20px",
+        }}
+      />
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            minHeight: "calc(100vh - 70px)",
-          }}
-        >
-          <div
-            style={{
-              width: "90%",
-              maxWidth: "420px",
-              padding: "40px",
-              borderRadius: "24px",
-              background: "rgba(255,255,255,0.92)",
-              backdropFilter: "blur(12px)",
-              textAlign: "center",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-            }}
-          >
-            <h2
-              style={{
-                marginBottom: "20px",
-                color: "#111827",
-                fontWeight: 800,
-              }}
-            >
-              Admin Login
-            </h2>
+      {error && (
+        <p style={{ color: "red", marginBottom: "10px", fontSize: "clamp(12px, 1.8vw, 14px)", textAlign: "center" }}>
+          {error}
+        </p>
+      )}
 
-            <p style={{ color: "#4b5563", fontSize: "14px", marginTop: 0, marginBottom: "18px" }}>
-              Uses the same Supabase username and password flow as the teacher login.
-            </p>
+      {infoMessage && (
+        <p style={{ color: "#166534", marginBottom: "10px", fontSize: "clamp(12px, 1.8vw, 14px)", textAlign: "center" }}>
+          {infoMessage}
+        </p>
+      )}
 
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "12px",
-                marginBottom: "15px",
-                borderRadius: "10px",
-                border: "1px solid #ccc",
-              }}
-            />
-
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "12px",
-                marginBottom: "20px",
-                borderRadius: "10px",
-                border: "1px solid #ccc",
-              }}
-            />
-
-            {error && <p style={{ color: "red", marginBottom: "10px" }}>{error}</p>}
-            {infoMessage && <p style={{ color: "#166534", marginBottom: "10px" }}>{infoMessage}</p>}
-
-            <button
-              onClick={handleLogin}
-              disabled={loading}
-              style={{
-                width: "100%",
-                padding: "14px",
-                borderRadius: "20px",
-                background: "black",
-                color: "white",
-                border: "none",
-                cursor: "pointer",
-                opacity: loading ? 0.75 : 1,
-              }}
-            >
-              {loading ? "Checking..." : "Login"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+      <button
+        onClick={handleLogin}
+        disabled={loading}
+        style={{
+          ...responsiveButtonStyle("black", "white"),
+          opacity: loading ? 0.75 : 1,
+        }}
+      >
+        {loading ? "Checking..." : "Login"}
+      </button>
+    </BaseLayout>
   );
 }

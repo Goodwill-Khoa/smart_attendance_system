@@ -1,3 +1,20 @@
+LECTURER TEST CREDENTIALS (CURRENT DB)
+Shared password for all lecturers: qwe123
+
+attila.ulbert@gmail.com | qwe123
+ba@inf.elte.hu | qwe123
+balint.orosz@inf.elte.hu | qwe123
+bouafia@inf.elte.hu | qwe123
+deva@inf.elte.hu | qwe123
+istvan.batori@gmail.com | qwe123
+ldani@elte.hu | qwe123
+newlecturer@inf.elte.hu | qwe123
+psarmasagi@inf.elte.hu | qwe123
+resettarget@inf.elte.hu | qwe123
+zsoltipelyhe@gmail.com | qwe123
+
+---
+
 Invoke-RestMethod -Method Post `
   -Uri "https://vygiutowqdzxuqagnidj.supabase.co/auth/v1/token?grant_type=password" `
   -Headers @{

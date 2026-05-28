@@ -11,7 +11,6 @@ __pycache__/
 venv/
 env/
 .venv/
-backend/attendance.db
 
 # IDEs and OS files
 .vscode/

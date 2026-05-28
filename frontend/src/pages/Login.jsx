@@ -2,27 +2,52 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import { FcGoogle } from "react-icons/fc";
 import { FaMicrosoft } from "react-icons/fa";
+import { useState } from "react";
 
 export default function Login() {
   const navigate = useNavigate();
-  //const BASE_URL = "http://127.0.0.1:8000";
+  const azureEnabled = import.meta.env.VITE_ENABLE_AZURE_SSO === "true";
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const normalizeAuthError = (message) => {
+    if (!message) return "Login failed.";
+    if (message.toLowerCase().includes("unsupported provider")) {
+      return "This SSO provider is not enabled in Supabase. Use email/password for now, or enable the provider in Supabase Auth settings.";
+    }
+    return message;
+  };
 
   //  Google 登录
   const handleGoogleLogin = async () => {
+    setError("");
+
     // clean session
     await supabase.auth.signOut();
 
-    await supabase.auth.signInWithOAuth({
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: window.location.origin
       }
     });
+
+    if (oauthError) {
+      setError(normalizeAuthError(oauthError.message));
+    }
   };
 
   //  Microsoft login
   const handleMicrosoftLogin = async () => {
-    await supabase.auth.signInWithOAuth({
+    setError("");
+
+    if (!azureEnabled) {
+      setError("Microsoft SSO is not enabled for this project. Use email/password for now.");
+      return;
+    }
+
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: "azure",
       options: {
         redirectTo: window.location.origin,
@@ -31,13 +56,38 @@ export default function Login() {
         }
       }
     });
+
+    if (oauthError) {
+      setError(normalizeAuthError(oauthError.message));
+    }
+  };
+
+  const handlePasswordLogin = async () => {
+    setError("");
+
+    if (!email.trim() || !password.trim()) {
+      setError("Email and password are required.");
+      return;
+    }
+
+    const { error: loginError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+
+    if (loginError) {
+      setError(normalizeAuthError(loginError.message));
+      return;
+    }
+
+    navigate("/student", { replace: true });
   };
 
   return (
     <div
       style={{
         minHeight: "100vh",
-        backgroundImage: "url('/bg.jpg')",
+        backgroundImage: "url('/ELTELogo.png')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         position: "relative",
@@ -67,7 +117,7 @@ export default function Login() {
           }}
         >
           <div
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/home")}
             style={{
               fontSize: "clamp(18px, 4vw, 22px)",
               fontWeight: "bold",
@@ -76,6 +126,21 @@ export default function Login() {
           >
             Attendance
           </div>
+
+          <button
+            onClick={() => navigate("/home")}
+            style={{
+              padding: "10px 18px",
+              borderRadius: "18px",
+              border: "1px solid white",
+              background: "rgba(0,0,0,0.35)",
+              color: "white",
+              cursor: "pointer",
+              fontWeight: 600,
+            }}
+          >
+            Home
+          </button>
         </div>
 
         {/* 登录卡片 */}
@@ -103,6 +168,8 @@ export default function Login() {
               style={{
                 marginBottom: "10px",
                 fontSize: "clamp(22px, 4vw, 28px)",
+                color: "#111827",
+                fontWeight: 800,
               }}
             >
               Sign In
@@ -115,7 +182,7 @@ export default function Login() {
                 fontSize: "clamp(14px, 2.5vw, 16px)",
               }}
             >
-              Use your ELTE account to continue
+              Students must use ELTE Microsoft SSO with an *.elte.hu email.
             </p>
 
             {/* Google 登录 */}
@@ -139,20 +206,83 @@ export default function Login() {
             {/* Microsoft 登录 */}
             <button
               onClick={handleMicrosoftLogin}
+              disabled={!azureEnabled}
+              title={azureEnabled ? "Microsoft SSO" : "Microsoft SSO is disabled"}
               style={{
                 width: "100%",
                 padding: "14px",
                 borderRadius: "12px",
                 border: "none",
-                background: "#2F2F2F",
+                background: azureEnabled ? "#2F2F2F" : "#9ca3af",
                 color: "white",
-                cursor: "pointer",
-                fontSize: "16px"
+                cursor: azureEnabled ? "pointer" : "not-allowed",
+                fontSize: "16px",
+                opacity: azureEnabled ? 1 : 0.85,
               }}
             >
-               <FaMicrosoft size={18} />
-              Continue with Microsoft
+              <FaMicrosoft size={18} />
+              {azureEnabled ? "Continue with Microsoft" : "Microsoft SSO (Disabled)"}
             </button>
+
+            <div
+              style={{
+                margin: "18px 0 10px",
+                color: "#777",
+                fontSize: "13px",
+              }}
+            >
+              Or sign in with email/password
+            </div>
+
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "12px",
+                marginBottom: "10px",
+                borderRadius: "10px",
+                border: "1px solid #ccc",
+              }}
+            />
+
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "12px",
+                marginBottom: "12px",
+                borderRadius: "10px",
+                border: "1px solid #ccc",
+              }}
+            />
+
+            <button
+              onClick={handlePasswordLogin}
+              style={{
+                width: "100%",
+                padding: "12px",
+                borderRadius: "10px",
+                border: "none",
+                background: "#10316b",
+                color: "white",
+                cursor: "pointer",
+                fontSize: "15px",
+              }}
+            >
+              Sign in with Email
+            </button>
+
+            {error && (
+              <p style={{ color: "#b00020", marginTop: "12px", fontSize: "14px" }}>
+                {error}
+              </p>
+            )}
 
           </div>
         </div>

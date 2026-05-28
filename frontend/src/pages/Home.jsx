@@ -7,7 +7,7 @@ export default function Home() {
     <div style={{
       position: "relative",
       minHeight: "100vh",
-      backgroundImage: "url('/bg.jpg')",
+      backgroundImage: "url('/ELTELogo.png')",
       backgroundSize: "cover",
       backgroundPosition: "center",
       backgroundRepeat: "no-repeat"
@@ -42,10 +42,25 @@ export default function Home() {
           marginTop: "10px"
         }}>
           <div style={{ fontSize: "24px", fontWeight: "bold" }}>
-            Attendance
+            Smart Multi-Modal Attendance
           </div>
 
           <div>
+            <button
+              onClick={() => navigate("/admin-login")}
+              style={{
+                marginRight: "10px",
+                padding: "clamp(10px, 2vw, 16px) clamp(20px, 5vw, 40px)",
+                fontSize: "clamp(14px, 3vw, 18px)",
+                borderRadius: "20px",
+                background: "#131313",
+                color: "white",
+                border: "1px solid #131313"
+              }}
+            >
+              Admin
+            </button>
+
             <button
               onClick={() => navigate("/teacher-login")}
               style={{
@@ -76,7 +91,7 @@ export default function Home() {
                 border: "none"
               }}
             >
-              Log In
+              Student
             </button>
           </div>
         </div>
@@ -84,6 +99,7 @@ export default function Home() {
         {/* Hero */}
         <div style={{
           flex: 1,
+          position: "relative",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -97,19 +113,28 @@ export default function Home() {
             fontSize: "clamp(28px, 6vw, 72px)",
             fontWeight: "bold",
             textAlign: "center",
-            marginBottom: "20px"
+            margin: 0,
+            position: "absolute",
+            top: "12%",
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: "90%"
           }}>
-            Classroom Attendance
+            Smart Multi-Modal Attendance
           </h1>
 
           {/* 副标题 */}
           <p style={{
-            marginTop: "20px",
+            margin: 0,
             //fontSize: "28px",
             fontSize: "clamp(14px, 2.5vw, 28px)",
             maxWidth: "600px",
             textAlign: "center",
-            marginBottom: "40px"
+            position: "absolute",
+            bottom: "10%",
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: "90%"
           }}>
             Generate QR codes instantly for students to scan and check in. Manage classroom attendance efficiently and keep every session organized.
           </p>

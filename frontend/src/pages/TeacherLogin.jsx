@@ -1,18 +1,60 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "../services/supabase";
+import { getApiBaseUrl } from "../services/apiBase";
 
 export default function TeacherLogin() {
   const navigate = useNavigate();
+  const BASE_URL = getApiBaseUrl();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [infoMessage, setInfoMessage] = useState("");
 
-  const handleLogin = () => {
-    if (email === "teacher@elte.hu" && password === "123456") {
-      navigate("/teacher");
-    } else {
-      setError("Invalid credentials");
+  const handleLogin = async () => {
+    setError("");
+    setInfoMessage("");
+
+    const { error: loginError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (loginError) {
+      setError(loginError.message || "Invalid credentials");
+      return;
+    }
+
+    navigate("/teacher-courses");
+  };
+
+  const handlePasswordResetRequest = async () => {
+    setError("");
+    setInfoMessage("");
+
+    if (!email.trim()) {
+      setError("Please enter your lecturer email first.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${BASE_URL}/lecturers/password-requests`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.detail || "Failed to submit password request.");
+        return;
+      }
+
+      setInfoMessage(data.message || "Password request sent to admin.");
+    } catch (err) {
+      console.error(err);
+      setError("Network error while requesting password reset.");
     }
   };
 
@@ -20,7 +62,7 @@ export default function TeacherLogin() {
     <div
       style={{
         minHeight: "100vh",
-        backgroundImage: "url('/bg.jpg')",
+        backgroundImage: "url('/ELTELogo.png')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         position: "relative",
@@ -40,12 +82,40 @@ export default function TeacherLogin() {
         style={{
           position: "relative",
           zIndex: 10,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100vh",
+          minHeight: "100vh",
         }}
       >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            padding: "24px 5vw 0",
+          }}
+        >
+          <button
+            onClick={() => navigate("/home")}
+            style={{
+              padding: "10px 18px",
+              borderRadius: "18px",
+              border: "1px solid white",
+              background: "rgba(0,0,0,0.35)",
+              color: "white",
+              cursor: "pointer",
+              fontWeight: 600,
+            }}
+          >
+            Home
+          </button>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            minHeight: "calc(100vh - 70px)",
+          }}
+        >
         {/* caed */}
         <div
           style={{
@@ -59,7 +129,13 @@ export default function TeacherLogin() {
             boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
           }}
         >
-          <h2 style={{ marginBottom: "20px" }}>
+          <h2
+            style={{
+              marginBottom: "20px",
+              color: "#111827",
+              fontWeight: 800,
+            }}
+          >
             Teacher Login
           </h2>
 
@@ -99,6 +175,12 @@ export default function TeacherLogin() {
             </p>
           )}
 
+          {infoMessage && (
+            <p style={{ color: "#166534", marginBottom: "10px" }}>
+              {infoMessage}
+            </p>
+          )}
+
           {/* button */}
           <button
             onClick={handleLogin}
@@ -114,6 +196,23 @@ export default function TeacherLogin() {
           >
             Login
           </button>
+
+          <button
+            onClick={handlePasswordResetRequest}
+            style={{
+              marginTop: "10px",
+              width: "100%",
+              padding: "12px",
+              borderRadius: "14px",
+              background: "transparent",
+              color: "#111827",
+              border: "1px solid #9ca3af",
+              cursor: "pointer",
+            }}
+          >
+            Request Password Reset
+          </button>
+        </div>
         </div>
       </div>
     </div>

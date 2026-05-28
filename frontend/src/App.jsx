@@ -7,11 +7,27 @@ import Login from "./pages/Login";
 import Scan from "./pages/Scan";
 import Teacher from "./pages/Teacher";
 import TeacherLogin from "./pages/TeacherLogin";
+import TeacherPassword from "./pages/TeacherPassword";
 import TeacherCourses from "./pages/TeacherCourses";
 import StudentCourses from "./pages/StudentCourses";
+import AdminLogin from "./pages/AdminLogin";
+import AdminDashboard from "./pages/AdminDashboard";
+import StudentFlow from "./pages/StudentFlow";
 
 function ProtectedRoute({ user, children }) {
   if (!user) return <Navigate to="/login" />;
+  return children;
+}
+
+function ElteStudentRoute({ user, children }) {
+  if (!user) return <Navigate to="/login" replace />;
+
+  const email = (user.email || "").toLowerCase();
+  const isElteStudentEmail = /^[^@]+@[^@]+\.elte\.hu$/.test(email);
+  if (!isElteStudentEmail) {
+    return <Navigate to="/login" replace />;
+  }
+
   return children;
 }
 
@@ -88,10 +104,12 @@ export default function App() {
 
       <Routes>
 
+        <Route path="/" element={<Navigate to="/home" replace />} />
+
         {/* 首页：已登录自动跳 scan */}
         <Route
-          path="/"
-          element={user ? <Navigate to="/courses" /> : <Home />}
+          path="/home"
+          element={user ? <Navigate to="/student" /> : <Home />}
         />
 
         {/* 登录页 */}
@@ -100,16 +118,34 @@ export default function App() {
         {/* 教师登录页 */}
         <Route path="/teacher-login" element={<TeacherLogin />} />
 
+        <Route path="/admin-login" element={<AdminLogin />} />
+
+        <Route path="/teacher-password" element={<TeacherPassword />} />
+
         {/* 教师课程 */}
         <Route
           path="/teacher-courses"
-          element={<TeacherCourses />}
+          element={<TeacherCourses user={user} />}
+        />
+
+        <Route
+          path="/admin"
+          element={<AdminDashboard />}
         />
 
         {/* 教师二维码 */}
         <Route path="/teacher" element={<Teacher />} />
 
         {/* 学生课程 */}
+        <Route
+          path="/student"
+          element={
+            <ElteStudentRoute user={user}>
+              <StudentFlow user={user} />
+            </ElteStudentRoute>
+          }
+        />
+
         <Route
           path="/courses"
           element={<StudentCourses user={user} />}
@@ -119,14 +155,14 @@ export default function App() {
         <Route
           path="/scan"
           element={
-            <ProtectedRoute user={user}>
+            <ElteStudentRoute user={user}>
               <Scan user={user} />
-            </ProtectedRoute>
+            </ElteStudentRoute>
           }
         />
 
         {/* fallback */}
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route path="*" element={<Navigate to="/home" replace />} />
 
       </Routes>
     </BrowserRouter>

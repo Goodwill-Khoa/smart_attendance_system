@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
+import { getApiBaseUrl } from "../services/apiBase";
 
 export default function StudentCourses({ user }) {
   const navigate = useNavigate();
@@ -9,9 +10,7 @@ export default function StudentCourses({ user }) {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
-  // mock / real
-  const BASE_URL = "mock";
-  //const BASE_URL = "http://127.0.0.1:8000";
+  const BASE_URL = getApiBaseUrl();
 
   // 获取 JWT
   const getJWT = async () => {
@@ -22,31 +21,6 @@ export default function StudentCourses({ user }) {
   // 获取学生课程
   const fetchCourses = async () => {
     try {
-      // ===== MOCK =====
-      if (BASE_URL === "mock") {
-        setCourses([
-          {
-            id: 1,
-            name: "English",
-            active: true,
-          },
-          {
-            id: 2,
-            name: "Mathematics",
-            active: false,
-          },
-          {
-            id: 3,
-            name: "Physics",
-            active: false,
-          },
-        ]);
-
-        setLoading(false);
-        return;
-      }
-
-      // ===== REAL =====
       const jwt = await getJWT();
 
       const res = await fetch(`${BASE_URL}/courses/student`, {
@@ -70,23 +44,6 @@ export default function StudentCourses({ user }) {
   const handleCourseClick = async (course) => {
     setMessage("");
 
-    // ===== MOCK =====
-    if (BASE_URL === "mock") {
-      if (course.active) {
-        navigate("/scan", {
-          state: {
-            courseId: course.id,
-            courseName: course.name,
-          },
-        });
-      } else {
-        setMessage(`"${course.name}" has not started yet.`);
-      }
-
-      return;
-    }
-
-    // ===== REAL =====
     try {
       const jwt = await getJWT();
 
@@ -132,7 +89,7 @@ export default function StudentCourses({ user }) {
     <div
       style={{
         minHeight: "100vh",
-        backgroundImage: "url('/bg.jpg')",
+        backgroundImage: "url('/ELTELogo.png')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         position: "relative",

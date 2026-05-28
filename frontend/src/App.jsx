@@ -21,18 +21,13 @@ function ProtectedRoute({ user, children }) {
 
 function ElteStudentRoute({ user, children }) {
   if (!user) return <Navigate to="/login" replace />;
-
   const email = (user.email || "").toLowerCase();
-  const isElteStudentEmail = /^[^@]+@[^@]+\.elte\.hu$/.test(email);
-  if (!isElteStudentEmail) {
-    return <Navigate to="/login" replace />;
-  }
-
   return children;
 }
 
 export default function App() {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   //  统一处理用户（兼容 Microsoft 没有 email）
@@ -67,17 +62,22 @@ export default function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       handleUser(data.session?.user);
+      setLoading(false);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_, session) => {
         handleUser(session?.user);
+        setLoading(false);
       }
     );
 
     return () => listener.subscription.unsubscribe();
   }, []);
-
+  
+  if (loading) {
+    return <div>Loading auth...</div>;
+  }
   return (
     <BrowserRouter>
 

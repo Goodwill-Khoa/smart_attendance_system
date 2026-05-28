@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
+import BaseLayout, { responsiveInputStyle, responsiveButtonStyle } from "../components/BaseLayout";
 import { FcGoogle } from "react-icons/fc";
 import { FaMicrosoft } from "react-icons/fa";
 import { useState } from "react";
@@ -19,11 +20,8 @@ export default function Login() {
     return message;
   };
 
-  //  Google 登录
   const handleGoogleLogin = async () => {
     setError("");
-
-    // clean session
     await supabase.auth.signOut();
 
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
@@ -38,7 +36,6 @@ export default function Login() {
     }
   };
 
-  //  Microsoft login
   const handleMicrosoftLogin = async () => {
     setError("");
 
@@ -83,210 +80,142 @@ export default function Login() {
     navigate("/student", { replace: true });
   };
 
+  const headerActions = [
+    {
+      label: "Home",
+      onClick: () => navigate("/home"),
+      style: {
+        border: "1px solid white",
+        background: "rgba(0,0,0,0.35)",
+        color: "white",
+      }
+    }
+  ];
+
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundImage: "url('/ELTELogo.png')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        position: "relative",
-      }}
+    <BaseLayout
+      headerTitle="Attendance"
+      headerActions={headerActions}
+      maxWidth="420px"
     >
-      {/* 遮罩 */}
+      <h2
+        style={{
+          marginBottom: "10px",
+          fontSize: "clamp(22px, 4vw, 28px)",
+          color: "#111827",
+          fontWeight: 800,
+          textAlign: "center",
+        }}
+      >
+        Sign In
+      </h2>
+
+      <p
+        style={{
+          marginBottom: "30px",
+          color: "#555",
+          fontSize: "clamp(14px, 2.5vw, 16px)",
+          textAlign: "center",
+        }}
+      >
+        Students must use ELTE Microsoft SSO with an *.elte.hu email.
+      </p>
+
+      {/* Google Login */}
+      <button
+        onClick={handleGoogleLogin}
+        style={{
+          width: "100%",
+          padding: "clamp(12px, 2vw, 14px)",
+          borderRadius: "12px",
+          border: "1px solid #ddd",
+          background: "white",
+          cursor: "pointer",
+          fontSize: "clamp(14px, 2vw, 16px)",
+          marginBottom: "15px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "8px",
+        }}
+      >
+        <FcGoogle size={20} />
+        Continue with Google
+      </button>
+
+      {/* Microsoft Login */}
+      <button
+        onClick={handleMicrosoftLogin}
+        disabled={!azureEnabled}
+        title={azureEnabled ? "Microsoft SSO" : "Microsoft SSO is disabled"}
+        style={{
+          width: "100%",
+          padding: "clamp(12px, 2vw, 14px)",
+          borderRadius: "12px",
+          border: "none",
+          background: azureEnabled ? "#2F2F2F" : "#9ca3af",
+          color: "white",
+          cursor: azureEnabled ? "pointer" : "not-allowed",
+          fontSize: "clamp(14px, 2vw, 16px)",
+          opacity: azureEnabled ? 1 : 0.85,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "8px",
+          marginBottom: "20px",
+        }}
+      >
+        <FaMicrosoft size={18} />
+        {azureEnabled ? "Continue with Microsoft" : "Microsoft SSO (Disabled)"}
+      </button>
+
       <div
         style={{
-          position: "absolute",
-          width: "100%",
-          height: "100%",
-          background: "rgba(0,0,0,0.2)",
-          pointerEvents: "none"
+          margin: "18px 0 10px",
+          color: "#777",
+          fontSize: "clamp(12px, 1.8vw, 13px)",
+          textAlign: "center",
+        }}
+      >
+        Or sign in with email/password
+      </div>
+
+      <input
+        type="email"
+        placeholder="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        style={{
+          ...responsiveInputStyle,
+          marginBottom: "10px",
         }}
       />
 
-      <div style={{ position: "relative", zIndex: 10 }}>
+      <input
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        style={{
+          ...responsiveInputStyle,
+          marginBottom: "12px",
+        }}
+      />
 
-        {/* 顶部导航 */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            padding: "clamp(20px, 4vw, 40px) 5vw",
-            color: "white",
-            alignItems: "center",
-          }}
-        >
-          <div
-            onClick={() => navigate("/home")}
-            style={{
-              fontSize: "clamp(18px, 4vw, 22px)",
-              fontWeight: "bold",
-              cursor: "pointer",
-            }}
-          >
-            Attendance
-          </div>
+      <button
+        onClick={handlePasswordLogin}
+        style={{
+          ...responsiveButtonStyle("#10316b", "white"),
+        }}
+      >
+        Sign in with Email
+      </button>
 
-          <button
-            onClick={() => navigate("/home")}
-            style={{
-              padding: "10px 18px",
-              borderRadius: "18px",
-              border: "1px solid white",
-              background: "rgba(0,0,0,0.35)",
-              color: "white",
-              cursor: "pointer",
-              fontWeight: 600,
-            }}
-          >
-            Home
-          </button>
-        </div>
-
-        {/* 登录卡片 */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            height: "80vh",
-          }}
-        >
-          <div
-            style={{
-              width: "90%",
-              maxWidth: "420px",
-              padding: "clamp(25px, 5vw, 50px)",
-              borderRadius: "24px",
-              background: "rgba(255,255,255,0.95)",
-              backdropFilter: "blur(12px)",
-              textAlign: "center",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-            }}
-          >
-            <h2
-              style={{
-                marginBottom: "10px",
-                fontSize: "clamp(22px, 4vw, 28px)",
-                color: "#111827",
-                fontWeight: 800,
-              }}
-            >
-              Sign In
-            </h2>
-
-            <p
-              style={{
-                marginBottom: "30px",
-                color: "#555",
-                fontSize: "clamp(14px, 2.5vw, 16px)",
-              }}
-            >
-              Students must use ELTE Microsoft SSO with an *.elte.hu email.
-            </p>
-
-            {/* Google 登录 */}
-            <button
-              onClick={handleGoogleLogin}
-              style={{
-                width: "100%",
-                padding: "14px",
-                borderRadius: "12px",
-                border: "1px solid #ddd",
-                background: "white",
-                cursor: "pointer",
-                fontSize: "16px",
-                marginBottom: "15px"
-              }}
-            >
-              <FcGoogle size={20} />
-              Continue with Google
-            </button>
-
-            {/* Microsoft 登录 */}
-            <button
-              onClick={handleMicrosoftLogin}
-              disabled={!azureEnabled}
-              title={azureEnabled ? "Microsoft SSO" : "Microsoft SSO is disabled"}
-              style={{
-                width: "100%",
-                padding: "14px",
-                borderRadius: "12px",
-                border: "none",
-                background: azureEnabled ? "#2F2F2F" : "#9ca3af",
-                color: "white",
-                cursor: azureEnabled ? "pointer" : "not-allowed",
-                fontSize: "16px",
-                opacity: azureEnabled ? 1 : 0.85,
-              }}
-            >
-              <FaMicrosoft size={18} />
-              {azureEnabled ? "Continue with Microsoft" : "Microsoft SSO (Disabled)"}
-            </button>
-
-            <div
-              style={{
-                margin: "18px 0 10px",
-                color: "#777",
-                fontSize: "13px",
-              }}
-            >
-              Or sign in with email/password
-            </div>
-
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "12px",
-                marginBottom: "10px",
-                borderRadius: "10px",
-                border: "1px solid #ccc",
-              }}
-            />
-
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "12px",
-                marginBottom: "12px",
-                borderRadius: "10px",
-                border: "1px solid #ccc",
-              }}
-            />
-
-            <button
-              onClick={handlePasswordLogin}
-              style={{
-                width: "100%",
-                padding: "12px",
-                borderRadius: "10px",
-                border: "none",
-                background: "#10316b",
-                color: "white",
-                cursor: "pointer",
-                fontSize: "15px",
-              }}
-            >
-              Sign in with Email
-            </button>
-
-            {error && (
-              <p style={{ color: "#b00020", marginTop: "12px", fontSize: "14px" }}>
-                {error}
-              </p>
-            )}
-
-          </div>
-        </div>
-      </div>
-    </div>
+      {error && (
+        <p style={{ color: "#b00020", marginTop: "12px", fontSize: "clamp(12px, 1.8vw, 14px)", textAlign: "center" }}>
+          {error}
+        </p>
+      )}
+    </BaseLayout>
   );
 }

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../services/supabase";
-import { useLocation } from "react-router-dom";
 import { QRCodeCanvas } from "qrcode.react";
+import BaseLayout, { responsiveButtonStyle } from "../components/BaseLayout";
 import { getApiBaseUrl } from "../services/apiBase";
 
 export default function Teacher() {
@@ -15,14 +15,11 @@ export default function Teacher() {
 
   const BASE_URL = getApiBaseUrl();
 
-  //  获取 JWT
   const getJWT = async () => {
     const { data } = await supabase.auth.getSession();
-    console.log("JWT:", data.session?.access_token); //debug
     return data.session?.access_token;
   };
 
-  //  获取 QR token
   const fetchQR = async () => {
     if (!sessionId) {
       setError("Missing session. Please start a session again.");
@@ -34,9 +31,7 @@ export default function Teacher() {
       const jwt = await getJWT();
 
       const res = await fetch(`${BASE_URL}/qr/${sessionId}`, {
-        headers: {
-          Authorization: `Bearer ${jwt}`,
-        },
+        headers: { Authorization: `Bearer ${jwt}` },
       });
 
       if (!res.ok) {
@@ -51,7 +46,6 @@ export default function Teacher() {
       const data = await res.json();
       setQrData(data.token);
     } catch (err) {
-      console.error(err);
       setError(err.message || "Failed to load QR code.");
     }
   };
@@ -60,7 +54,6 @@ export default function Teacher() {
     try {
       const res = await fetch(`${BASE_URL}/system/emergency-message`);
       if (!res.ok) return;
-
       const data = await res.json();
       if (data.active && data.message) {
         setEmergencyMessage(data.message);
@@ -68,11 +61,10 @@ export default function Teacher() {
         setEmergencyMessage("");
       }
     } catch {
-      // Keep current state if endpoint is temporarily unavailable.
+      // Keep current state
     }
   };
-  
-  //  自动刷新 QR
+
   useEffect(() => {
     if (!sessionId) return;
 
@@ -86,18 +78,13 @@ export default function Teacher() {
     return () => clearInterval(interval);
   }, [sessionId]);
 
-  //  登出
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/", { replace: true });
   };
 
-  // export csv
   const handleExport = () => {
-    window.open(
-      `${BASE_URL}/sessions/${sessionId}/export`,
-      "_blank"
-    );
+    window.open(`${BASE_URL}/sessions/${sessionId}/export`, "_blank");
   };
 
   const handleEndSession = async () => {
@@ -107,9 +94,7 @@ export default function Teacher() {
       const jwt = await getJWT();
       const res = await fetch(`${BASE_URL}/sessions/${sessionId}/end`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${jwt}`,
-        },
+        headers: { Authorization: `Bearer ${jwt}` },
       });
 
       if (!res.ok) {
@@ -122,171 +107,131 @@ export default function Teacher() {
     }
   };
 
+  const headerActions = [
+    {
+      label: "Export",
+      onClick: handleExport,
+      style: { background: "white", color: "#0f1f44", border: "1px solid #b5c5f0" }
+    },
+    {
+      label: "Logout",
+      onClick: handleLogout,
+      style: { background: "#0f1f44" }
+    }
+  ];
+
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(180deg, #edf2ff 0%, #dce7ff 100%)",
-        position: "relative",
-        display: "flex",
-        flexDirection: "column",
-      }}
+    <BaseLayout
+      headerTitle="Live QR Session"
+      headerActions={headerActions}
+      maxWidth="640px"
+      backgroundColor="rgba(237, 242, 255, 0.9)"
     >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          padding: "18px 24px",
-          color: "#0f1f44",
-          alignItems: "center",
-        }}
-      >
-        <div style={{ fontSize: "24px", fontWeight: "bold" }}>
-          Live Session QR
-        </div>
+      <h2 style={{
+        textAlign: "center",
+        marginBottom: "12px",
+        fontSize: "clamp(24px, 5vw, 36px)",
+        color: "#0f1f44"
+      }}>
+        {courseName ? courseName : "Attendance Session"}
+      </h2>
 
-        <div>
-          <button
-            onClick={handleExport}
-            style={{
-              marginRight: "10px",
-              padding: "10px 18px",
-              borderRadius: "20px",
-              background: "white",
-              color: "#0f1f44",
-              border: "1px solid #b5c5f0",
-              cursor: "pointer",
-            }}
-          >
-            Export
-          </button>
+      <p style={{
+        textAlign: "center",
+        marginBottom: "22px",
+        color: "#42527a",
+        fontSize: "clamp(13px, 1.8vw, 15px)"
+      }}>
+        Students scan this QR code to check in.
+      </p>
 
-          <button
-            onClick={handleLogout}
-            style={{
-              padding: "10px 18px",
-              borderRadius: "20px",
-              background: "#0f1f44",
-              color: "white",
-              border: "none",
-              cursor: "pointer",
-            }}
-          >
-            Logout
-          </button>
+      {emergencyMessage && (
+        <div style={{
+          marginBottom: "14px",
+          border: "1px solid #fecaca",
+          background: "#fef2f2",
+          color: "#991b1b",
+          borderRadius: "12px",
+          padding: "clamp(10px, 2vw, 14px)",
+          fontWeight: 700,
+          fontSize: "clamp(12px, 1.8vw, 14px)",
+          textAlign: "center"
+        }}>
+          ⚠️ {emergencyMessage}
         </div>
+      )}
+
+      {error && (
+        <div style={{
+          marginBottom: "15px",
+          color: "#a61d24",
+          fontWeight: "bold",
+          textAlign: "center",
+          fontSize: "clamp(12px, 1.8vw, 14px)"
+        }}>
+          {error}
+        </div>
+      )}
+
+      <div style={{
+        width: "min(78vw, 460px)",
+        height: "min(78vw, 460px)",
+        background: "white",
+        borderRadius: "20px",
+        boxShadow: "0 18px 45px rgba(0,0,0,0.15)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        margin: "0 auto 22px",
+        overflow: "hidden"
+      }}>
+        {qrData ? (
+          <QRCodeCanvas
+            value={qrData}
+            size={Math.min(420, Math.max(300, window.innerWidth * 0.7))}
+            includeMargin={true}
+          />
+        ) : (
+          <span style={{ color: "#666", fontSize: "clamp(14px, 2vw, 16px)" }}>
+            Loading QR...
+          </span>
+        )}
       </div>
 
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          paddingBottom: "110px",
-        }}
-      >
-        <div style={{ textAlign: "center" }}>
-          <h2 style={{ marginBottom: "10px", fontSize: "36px", color: "#0f1f44" }}>
-            {courseName ? `${courseName}` : "Attendance Session"}
-          </h2>
-          <p style={{ marginBottom: "22px", color: "#42527a" }}>
-            Students scan this QR code to check in.
-          </p>
-
-          {emergencyMessage && (
-            <div
-              style={{
-                marginBottom: "14px",
-                border: "1px solid #fecaca",
-                background: "#fef2f2",
-                color: "#991b1b",
-                borderRadius: "12px",
-                padding: "10px 12px",
-                fontWeight: 700,
-              }}
-            >
-              Emergency protocol message: {emergencyMessage}
-            </div>
-          )}
-
-          {error && (
-            <div
-              style={{
-                marginBottom: "15px",
-                color: "#a61d24",
-                fontWeight: "bold",
-              }}
-            >
-              {error}
-            </div>
-          )}
-
-          <div
-            style={{
-              width: "min(78vw, 520px)",
-              height: "min(78vw, 520px)",
-              background: "white",
-              borderRadius: "20px",
-              boxShadow: "0 18px 45px rgba(0,0,0,0.15)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              margin: "0 auto",
-            }}
-          >
-            {qrData ? (
-              <QRCodeCanvas value={qrData} size={420} includeMargin={true} />
-            ) : (
-              <span style={{ color: "#666" }}>Loading QR...</span>
-            )}
-          </div>
-
-          <button
-            onClick={fetchQR}
-            style={{
-              marginTop: "18px",
-              padding: "12px 24px",
-              borderRadius: "20px",
-              background: "#0f1f44",
-              color: "white",
-              border: "none",
-              cursor: "pointer",
-            }}
-          >
-            Refresh QR
-          </button>
-          <p style={{ marginTop: "10px", fontSize: "13px", color: "#555" }}>
-            Auto refresh every 10 seconds
-          </p>
-        </div>
-      </div>
-
-      <div
-        style={{
-          position: "fixed",
-          bottom: "24px",
-          left: "50%",
-          transform: "translateX(-50%)",
-          zIndex: 30,
-        }}
-      >
+      <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "20px" }}>
         <button
-          onClick={handleEndSession}
+          onClick={fetchQR}
           style={{
-            padding: "14px 34px",
-            borderRadius: "24px",
-            background: "#c62828",
-            color: "white",
-            border: "none",
-            cursor: "pointer",
-            fontWeight: "bold",
-            boxShadow: "0 10px 20px rgba(0,0,0,0.2)",
+            ...responsiveButtonStyle("#0f1f44", "white"),
+            width: "100%"
           }}
         >
-          End Session
+          Refresh QR
         </button>
+
+        <p style={{
+          marginTop: "0",
+          marginBottom: "0",
+          fontSize: "clamp(12px, 1.8vw, 13px)",
+          color: "#555",
+          textAlign: "center"
+        }}>
+          Auto refresh every 10 seconds
+        </p>
       </div>
-    </div>
+
+      <button
+        onClick={handleEndSession}
+        style={{
+          ...responsiveButtonStyle("#c62828", "white"),
+          width: "100%",
+          fontWeight: "bold",
+          boxShadow: "0 10px 20px rgba(0,0,0,0.2)",
+          marginTop: "16px"
+        }}
+      >
+        End Session
+      </button>
+    </BaseLayout>
   );
 }

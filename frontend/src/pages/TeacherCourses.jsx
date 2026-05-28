@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
+import BaseLayout, { responsiveInputStyle, responsiveButtonStyle, mobileGridStyle } from "../components/BaseLayout";
 import { getApiBaseUrl } from "../services/apiBase";
 
 export default function TeacherCourses({ user }) {
@@ -66,9 +67,7 @@ export default function TeacherCourses({ user }) {
       params.set("teacherEmail", teacherEmail);
 
       const res = await fetch(`${BASE_URL}/courses/teacher?${params.toString()}`, {
-        headers: {
-          Authorization: `Bearer ${jwt}`,
-        },
+        headers: { Authorization: `Bearer ${jwt}` },
       });
 
       const data = await res.json();
@@ -173,9 +172,7 @@ export default function TeacherCourses({ user }) {
       const params = new URLSearchParams({ teacherEmail });
       const res = await fetch(`${BASE_URL}/teacher/courses/${selectedCourseId}/assign?${params.toString()}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${jwt}`,
-        },
+        headers: { Authorization: `Bearer ${jwt}` },
       });
       const data = await res.json();
 
@@ -254,9 +251,7 @@ export default function TeacherCourses({ user }) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${jwt}`,
         },
-        body: JSON.stringify({
-          course_id: course.id,
-        }),
+        body: JSON.stringify({ course_id: course.id }),
       });
 
       const data = await res.json();
@@ -299,9 +294,7 @@ export default function TeacherCourses({ user }) {
 
       const res = await fetch(`${BASE_URL}/teacher/courses/${selectedCourseId}/students/upload`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${jwt}`,
-        },
+        headers: { Authorization: `Bearer ${jwt}` },
         body: formData,
       });
 
@@ -367,353 +360,243 @@ export default function TeacherCourses({ user }) {
 
   const selectedCourse = courses.find((course) => course.id === selectedCourseId);
 
+  const headerActions = [
+    {
+      label: "Change Password",
+      onClick: () => navigate("/teacher-password"),
+      style: { background: "white", color: "#111827", border: "1px solid #d1d5db" }
+    },
+    {
+      label: "Logout",
+      onClick: handleLogout,
+      style: { background: "black" }
+    }
+  ];
+
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundImage: "url('/ELTELogo.png')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        position: "relative",
-      }}
+    <BaseLayout
+      headerTitle="Teacher Dashboard"
+      headerActions={headerActions}
+      maxWidth="700px"
     >
-      <div
-        style={{
-          position: "absolute",
-          width: "100%",
-          height: "100%",
-          background: "rgba(0,0,0,0.2)",
-          pointerEvents: "none",
-        }}
-      />
+      <h2 style={{ textAlign: "center", marginBottom: "8px", fontSize: "clamp(20px, 4vw, 24px)" }}>
+        Manage Your Courses
+      </h2>
 
-      <div style={{ position: "relative", zIndex: 10 }}>
-        <div
+      {checkingPasswordPolicy && (
+        <p style={{ textAlign: "center", color: "#555", marginTop: 0, fontSize: "clamp(13px, 1.8vw, 15px)" }}>
+          Checking password policy...
+        </p>
+      )}
+
+      <p style={{ textAlign: "center", color: "#666", marginBottom: "20px", fontSize: "clamp(13px, 1.8vw, 14px)" }}>
+        Choose semester and course from dropdown.
+      </p>
+
+      <div style={{ display: "flex", gap: "12px", marginBottom: "14px", flexWrap: "wrap" }}>
+        <select
+          value={selectedSemester}
+          onChange={(e) => setSelectedSemester(e.target.value)}
           style={{
-            display: "flex",
-            justifyContent: "space-between",
-            padding: "clamp(16px, 3vw, 40px) clamp(12px, 4vw, 5vw)",
-            color: "white",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: "12px",
+            ...responsiveInputStyle,
+            flex: 1,
+            minWidth: "140px",
+            fontWeight: 600
           }}
         >
-          <div style={{ fontSize: "clamp(18px, 4vw, 24px)", fontWeight: "bold", minWidth: "100px" }}>
-            Teacher Panel
-          </div>
+          {semesters.map((semester) => (
+            <option key={semester} value={semester}>
+              {semester}
+            </option>
+          ))}
+        </select>
 
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" }}>
-            <button
-              onClick={() => navigate("/teacher-password")}
-              style={{
-                padding: "clamp(8px, 1.5vw, 12px) clamp(12px, 2.5vw, 18px)",
-                borderRadius: "20px",
-                border: "1px solid #d1d5db",
-                background: "white",
-                color: "#111827",
-                cursor: "pointer",
-                fontSize: "clamp(13px, 2vw, 15px)",
-                whiteSpace: "nowrap",
-              }}
-            >
-              Change Password
-            </button>
-
-            <button
-              onClick={handleLogout}
-              style={{
-                padding: "clamp(8px, 1.5vw, 12px) clamp(12px, 2.5vw, 24px)",
-                borderRadius: "20px",
-                border: "none",
-                background: "black",
-                color: "white",
-                cursor: "pointer",
-                fontSize: "clamp(13px, 2vw, 16px)",
-                whiteSpace: "nowrap",
-              }}
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-
-        <div
+        <button
+          onClick={() => setShowManagePanel((prev) => !prev)}
           style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            minHeight: "80vh",
-            padding: "clamp(12px, 3vw, 20px)",
+            ...responsiveButtonStyle("white", "#222"),
+            border: "1px solid #222",
+            padding: "clamp(8px, 2vw, 10px) clamp(12px, 2vw, 16px)",
+            whiteSpace: "nowrap"
           }}
         >
-          <div
+          {showManagePanel ? "Hide" : "Manage"}
+        </button>
+      </div>
+
+      {showManagePanel && (
+        <div style={{
+          ...mobileGridStyle("140px"),
+          marginBottom: "18px",
+          padding: "14px",
+          background: "#f9fafb",
+          borderRadius: "12px"
+        }}>
+          <input
+            value={newCourseName}
+            onChange={(e) => setNewCourseName(e.target.value)}
+            placeholder="Request course name"
+            style={{ ...responsiveInputStyle, gridColumn: "1 / -1" }}
+          />
+          <select
+            value={newCourseType}
+            onChange={(e) => setNewCourseType(e.target.value)}
+            style={{ ...responsiveInputStyle, fontWeight: 600 }}
+          >
+            <option value="L">L</option>
+            <option value="Pr">Pr</option>
+            <option value="Lab">Lab</option>
+            <option value="Lab I">Lab I</option>
+          </select>
+          <input
+            value={newCourseCode}
+            onChange={(e) => setNewCourseCode(e.target.value)}
+            placeholder="Optional code"
+            style={{ ...responsiveInputStyle }}
+          />
+          <button
+            onClick={handleAddCourse}
+            disabled={saving}
             style={{
-              width: "100%",
-              maxWidth: "700px",
-              padding: "clamp(20px, 5vw, 40px)",
-              borderRadius: "24px",
-              background: "rgba(255,255,255,0.92)",
-              backdropFilter: "blur(12px)",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-              overflowX: "hidden",
+              ...responsiveButtonStyle("#1f6f3f", "white"),
+              gridColumn: "1 / -1",
+              border: "none"
             }}
           >
-            <h2 style={{ textAlign: "center", marginBottom: "10px" }}>Teacher Dashboard</h2>
-            {checkingPasswordPolicy && (
-              <p style={{ textAlign: "center", color: "#555", marginTop: 0 }}>
-                Checking password policy...
-              </p>
-            )}
-            <p style={{ textAlign: "center", color: "#666", marginBottom: "20px" }}>
-              Choose semester and course from dropdown.
-            </p>
+            Add From DB
+          </button>
+          <button
+            onClick={handleRemoveCourse}
+            style={{
+              ...responsiveButtonStyle("white", "#a00"),
+              border: "1px solid #a00",
+              gridColumn: "1 / -1"
+            }}
+          >
+            Remove
+          </button>
+          <select
+            value={selectedCatalogCourseId}
+            onChange={(e) => setSelectedCatalogCourseId(e.target.value)}
+            style={{ ...responsiveInputStyle, gridColumn: "1 / -1", fontWeight: 600 }}
+          >
+            <option value="">Select from DB catalog</option>
+            {catalogCourses.map((course) => (
+              <option key={course.id} value={course.id}>
+                {`${course.name}, ${course.courseType || "L"}, ${course.code}`}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={handleRequestCourse}
+            style={{
+              ...responsiveButtonStyle("white", "#10316b"),
+              border: "1px solid #10316b",
+              gridColumn: "1 / -1"
+            }}
+          >
+            Request DB Approval
+          </button>
+        </div>
+      )}
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr auto",
-                gap: "12px",
-                marginBottom: "14px",
-                gridAutoFlow: "row",
-              }}
-            >
-              <select
-                value={selectedSemester}
-                onChange={(e) => setSelectedSemester(e.target.value)}
-                style={{ padding: "clamp(10px, 2vw, 12px)", borderRadius: "10px", border: "1px solid #ccc", color: "#111", fontWeight: 600, fontSize: "clamp(14px, 2vw, 16px)" }}
-              >
-                {semesters.map((semester) => (
-                  <option key={semester} value={semester}>
-                    {semester}
-                  </option>
-                ))}
-              </select>
+      {loading ? (
+        <p style={{ textAlign: "center", color: "#666" }}>Loading courses...</p>
+      ) : (
+        <>
+          <select
+            value={selectedCourseId}
+            onChange={(e) => setSelectedCourseId(e.target.value)}
+            style={{
+              ...responsiveInputStyle,
+              width: "100%",
+              fontWeight: 600
+            }}
+          >
+            <option value="">Select course</option>
+            {courses.map((course) => (
+              <option key={course.id} value={course.id}>
+                {`${course.name}, ${course.courseType || "L"}, ${course.code}`}
+              </option>
+            ))}
+          </select>
 
-              <button
-                onClick={() => setShowManagePanel((prev) => !prev)}
-                style={{
-                  borderRadius: "10px",
-                  border: "1px solid #222",
-                  background: "#fff",
-                  color: "#222",
-                  padding: "clamp(8px, 2vw, 10px) clamp(12px, 2vw, 14px)",
-                  cursor: "pointer",
-                  fontSize: "clamp(13px, 1.8vw, 15px)",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {showManagePanel ? "Hide" : "Manage"}
-              </button>
-            </div>
-
-            {showManagePanel && (
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-                  gap: "10px",
-                  marginBottom: "18px",
-                }}
-              >
-                <input
-                  value={newCourseName}
-                  onChange={(e) => setNewCourseName(e.target.value)}
-                  placeholder="Request course name"
-                  style={{ padding: "clamp(8px, 2vw, 10px)", borderRadius: "10px", border: "1px solid #ccc", fontSize: "clamp(13px, 1.8vw, 14px)" }}
-                />
-                <select
-                  value={newCourseType}
-                  onChange={(e) => setNewCourseType(e.target.value)}
-                  style={{ padding: "clamp(8px, 2vw, 10px)", borderRadius: "10px", border: "1px solid #ccc", color: "#111", fontWeight: 600, fontSize: "clamp(13px, 1.8vw, 14px)" }}
-                >
-                  <option value="L">L</option>
-                  <option value="Pr">Pr</option>
-                  <option value="Lab">Lab</option>
-                  <option value="Lab I">Lab I</option>
-                </select>
-                <input
-                  value={newCourseCode}
-                  onChange={(e) => setNewCourseCode(e.target.value)}
-                  placeholder="Optional request code"
-                  style={{ padding: "clamp(8px, 2vw, 10px)", borderRadius: "10px", border: "1px solid #ccc", fontSize: "clamp(13px, 1.8vw, 14px)" }}
-                />
-                <button
-                  onClick={handleAddCourse}
-                  disabled={saving}
-                  style={{
-                    border: "none",
-                    borderRadius: "10px",
-                    background: "#1f6f3f",
-                    color: "white",
-                    padding: "clamp(8px, 2vw, 10px) clamp(10px, 1.5vw, 14px)",
-                    cursor: "pointer",
-                    fontSize: "clamp(12px, 1.8vw, 14px)",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  Add From DB
-                </button>
-                <button
-                  onClick={handleRemoveCourse}
-                  style={{
-                    border: "1px solid #a00",
-                    borderRadius: "10px",
-                    padding: "clamp(8px, 2vw, 10px) clamp(10px, 1.5vw, 14px)",
-                    background: "#fff",
-                    color: "#a00",
-                    cursor: "pointer",
-                    fontSize: "clamp(12px, 1.8vw, 14px)",
-                  }}
-                >
-                  Remove
-                </button>
-                <select
-                  value={selectedCatalogCourseId}
-                  onChange={(e) => setSelectedCatalogCourseId(e.target.value)}
-                  style={{ padding: "clamp(8px, 2vw, 10px)", borderRadius: "10px", border: "1px solid #ccc", color: "#111", fontWeight: 600, fontSize: "clamp(13px, 1.8vw, 14px)", gridColumn: "1 / -1" }}
-                >
-                  <option value="">Select from DB catalog</option>
-                  {catalogCourses.map((course) => (
-                    <option key={course.id} value={course.id}>
-                      {`${course.name}, ${course.courseType || "L"}, ${course.code}`}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  onClick={handleRequestCourse}
-                  style={{
-                    border: "1px solid #10316b",
-                    borderRadius: "10px",
-                    padding: "clamp(8px, 2vw, 10px) clamp(10px, 1.5vw, 14px)",
-                    background: "#fff",
-                    color: "#10316b",
-                    cursor: "pointer",
-                    fontSize: "clamp(12px, 1.8vw, 14px)",
-                    gridColumn: "1 / -1",
-                  }}
-                >
-                  Request DB Approval
-                </button>
+          {selectedCourse ? (
+            <div style={{
+              border: "1px solid #d8d8d8",
+              borderRadius: "12px",
+              padding: "14px",
+              background: "#fafafa",
+              marginTop: "14px"
+            }}>
+              <div style={{ fontWeight: "bold", marginBottom: "6px", fontSize: "clamp(16px, 2.5vw, 18px)" }}>
+                {selectedCourse.name}
               </div>
-            )}
+              <div style={{ fontSize: "clamp(12px, 1.8vw, 14px)", color: "#555", marginBottom: "12px" }}>
+                {selectedCourse.courseType || "L"}, {selectedCourse.code}
+              </div>
+              <button
+                onClick={handleStartSelectedCourse}
+                style={{ ...responsiveButtonStyle("black", "white"), width: "100%" }}
+              >
+                Start Session
+              </button>
 
-            {loading ? (
-              <p style={{ textAlign: "center" }}>Loading courses...</p>
-            ) : (
-              <>
-                <select
-                  value={selectedCourseId}
-                  onChange={(e) => setSelectedCourseId(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "clamp(10px, 2vw, 12px)",
-                    borderRadius: "10px",
-                    border: "1px solid #ccc",
-                    background: "#fff",
-                    color: "#111",
-                    fontWeight: 600,
-                    fontSize: "clamp(13px, 1.8vw, 16px)",
-                  }}
-                >
-                  <option value="">Select course</option>
-                  {courses.map((course) => (
-                    <option key={course.id} value={course.id}>
-                      {`${course.name}, ${course.courseType || "L"}, ${course.code}`}
-                    </option>
-                  ))}
-                </select>
-
-                {selectedCourse ? (
-                  <div
+              <div style={{ marginTop: "14px", borderTop: "1px solid #e5e7eb", paddingTop: "12px" }}>
+                <div style={{ fontSize: "clamp(12px, 1.8vw, 13px)", color: "#374151", marginBottom: "10px", fontWeight: 600 }}>
+                  📋 Upload Registered Students (CSV)
+                </div>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center", marginBottom: "10px" }}>
+                  <input
+                    key={selectedCourseId}
+                    type="file"
+                    accept=".csv,text/csv"
+                    onChange={(e) => setRosterFile(e.target.files?.[0] || null)}
+                    style={{ maxWidth: "100%", fontSize: "clamp(12px, 1.8vw, 14px)" }}
+                  />
+                  <button
+                    onClick={handleUploadRoster}
+                    disabled={uploadingRoster}
                     style={{
-                      border: "1px solid #d8d8d8",
-                      borderRadius: "12px",
-                      padding: "14px",
-                      background: "#fafafa",
-                      marginTop: "14px",
+                      ...responsiveButtonStyle("white", "#1f6f3f"),
+                      border: "1px solid #1f6f3f",
+                      padding: "clamp(6px, 1.5vw, 8px) clamp(10px, 2vw, 12px)",
+                      whiteSpace: "nowrap",
+                      fontWeight: 600
                     }}
                   >
-                    <div style={{ fontWeight: "bold", marginBottom: "6px" }}>{selectedCourse.name}</div>
-                    <div style={{ fontSize: "14px", color: "#555", marginBottom: "10px" }}>
-                      {selectedCourse.courseType || "L"}, {selectedCourse.code}
-                    </div>
-                    <button
-                      onClick={handleStartSelectedCourse}
-                      style={{
-                        border: "none",
-                        borderRadius: "10px",
-                        padding: "10px 14px",
-                        background: "black",
-                        color: "white",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Start Session
-                    </button>
-
-                    <div style={{ marginTop: "14px", borderTop: "1px solid #e5e7eb", paddingTop: "12px" }}>
-                      <div style={{ fontSize: "clamp(12px, 1.8vw, 13px)", color: "#374151", marginBottom: "8px", fontWeight: 600 }}>
-                        Upload registered students (CSV)
-                      </div>
-                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
-                        <input
-                          key={selectedCourseId}
-                          type="file"
-                          accept=".csv,text/csv"
-                          onChange={(e) => setRosterFile(e.target.files?.[0] || null)}
-                          style={{ maxWidth: "100%", fontSize: "clamp(12px, 1.8vw, 14px)" }}
-                        />
-                        <button
-                          onClick={handleUploadRoster}
-                          disabled={uploadingRoster}
-                          style={{
-                            border: "1px solid #1f6f3f",
-                            borderRadius: "10px",
-                            padding: "clamp(6px, 1.5vw, 8px) clamp(10px, 2vw, 12px)",
-                            background: "white",
-                            color: "#1f6f3f",
-                            cursor: "pointer",
-                            fontWeight: 600,
-                            fontSize: "clamp(12px, 1.8vw, 14px)",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {uploadingRoster ? "Uploading..." : "Upload"}
-                        </button>
-                      </div>
-                      {rosterSummary && (
-                        <div style={{ marginTop: "8px", color: "#14532d", fontSize: "clamp(12px, 1.8vw, 13px)" }}>{rosterSummary}</div>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ fontSize: "14px", color: "#666", marginTop: "12px" }}>
-                    Select a course to reveal course details and start session.
+                    {uploadingRoster ? "Uploading..." : "Upload"}
+                  </button>
+                </div>
+                {rosterSummary && (
+                  <div style={{ marginTop: "8px", color: "#14532d", fontSize: "clamp(12px, 1.8vw, 13px)" }}>
+                    ✅ {rosterSummary}
                   </div>
                 )}
-              </>
-            )}
-
-            {message && (
-              <div
-                style={{
-                  marginTop: "25px",
-                  padding: "16px",
-                  borderRadius: "14px",
-                  background: "rgba(255,0,0,0.08)",
-                  color: "red",
-                  textAlign: "center",
-                  fontWeight: "bold",
-                }}
-              >
-                {message}
               </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div style={{ fontSize: "clamp(13px, 1.8vw, 14px)", color: "#666", marginTop: "12px", textAlign: "center" }}>
+              Select a course to reveal details and start session.
+            </div>
+          )}
+        </>
+      )}
+
+      {message && (
+        <div style={{
+          marginTop: "25px",
+          padding: "16px",
+          borderRadius: "14px",
+          background: "rgba(255,0,0,0.08)",
+          color: "red",
+          textAlign: "center",
+          fontWeight: "bold",
+          fontSize: "clamp(12px, 1.8vw, 14px)"
+        }}>
+          {message}
         </div>
-      </div>
-    </div>
+      )}
+    </BaseLayout>
   );
 }
-

@@ -3,6 +3,17 @@ import { useNavigate } from "react-router-dom";
 export default function Home() {
   const navigate = useNavigate();
 
+  const buttonStyle = (bg, color, border) => ({
+    padding: "clamp(10px, 2vw, 16px) clamp(20px, 5vw, 40px)",
+    fontSize: "clamp(14px, 3vw, 18px)",
+    borderRadius: "20px",
+    background: bg,
+    color: color,
+    border: border || "none",
+    cursor: "pointer",
+    transition: "0.2s",
+  });
+
   return (
     <div style={{
       position: "relative",
@@ -12,18 +23,14 @@ export default function Home() {
       backgroundPosition: "center",
       backgroundRepeat: "no-repeat"
     }}>
-
-      {/* 遮罩 */}
       <div style={{
         position: "absolute",
         width: "100%",
         height: "100%",
         background: "linear-gradient(rgba(0,0,0,0.05), rgba(0,0,0,0.4))",
         pointerEvents: "none"
-        
       }} />
 
-      {/* 内容 */}
       <div style={{
         position: "relative",
         zIndex: 10,
@@ -32,71 +39,45 @@ export default function Home() {
         minHeight: "100vh",
         color: "white"
       }}>
-
-        {/*导航 */}
+        {/* Header Navigation */}
         <div style={{
           display: "flex",
           justifyContent: "space-between",
-          //padding: "20px 120px"
-          padding:"30px 5vw",
-          marginTop: "10px"
+          alignItems: "center",
+          padding: "30px 5vw",
+          marginTop: "10px",
+          flexWrap: "wrap",
+          gap: "15px"
         }}>
-          <div style={{ fontSize: "24px", fontWeight: "bold" }}>
-            Smart Multi-Modal Attendance
+          <div style={{ fontSize: "clamp(20px, 4vw, 24px)", fontWeight: "bold" }}>
+            Smart Attendance
           </div>
 
-          <div>
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
             <button
               onClick={() => navigate("/admin-login")}
-              style={{
-                marginRight: "10px",
-                padding: "clamp(10px, 2vw, 16px) clamp(20px, 5vw, 40px)",
-                fontSize: "clamp(14px, 3vw, 18px)",
-                borderRadius: "20px",
-                background: "#131313",
-                color: "white",
-                border: "1px solid #131313"
-              }}
+              style={{ ...buttonStyle("#131313", "white", "1px solid #131313") }}
             >
               Admin
             </button>
 
             <button
               onClick={() => navigate("/teacher-login")}
-              style={{
-                marginRight: "10px",
-                //padding: "16px 40px",
-                padding: "clamp(10px, 2vw, 16px) clamp(20px, 5vw, 40px)",
-                //fontSize: "18px",
-                fontSize: "clamp(14px, 3vw, 18px)",
-                borderRadius: "20px",
-                background: "transparent",
-                color: "white",
-                border: "1px solid white"
-              }}
+              style={{ ...buttonStyle("transparent", "white", "1px solid white") }}
             >
               Teacher
             </button>
 
             <button
               onClick={() => navigate("/login")}
-              style={{
-                //padding: "16px 40px",
-                padding: "clamp(10px, 2vw, 16px) clamp(20px, 5vw, 40px)",
-                //fontSize: "18px",
-                fontSize: "clamp(14px, 3vw, 18px)",
-                borderRadius: "20px",
-                background: "white",
-                color: "black",
-                border: "none"
-              }}
+              style={{ ...buttonStyle("white", "black") }}
             >
               Student
             </button>
           </div>
         </div>
 
-        {/* Hero */}
+        {/* Hero Section */}
         <div style={{
           flex: 1,
           position: "relative",
@@ -104,12 +85,10 @@ export default function Home() {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          marginTop: "-50px"
+          marginTop: "-50px",
+          padding: "20px"
         }}>
-
-          {/* 标题 */}
           <h1 style={{
-            //fontSize: "72px",
             fontSize: "clamp(28px, 6vw, 72px)",
             fontWeight: "bold",
             textAlign: "center",
@@ -123,10 +102,8 @@ export default function Home() {
             Smart Multi-Modal Attendance
           </h1>
 
-          {/* 副标题 */}
           <p style={{
             margin: 0,
-            //fontSize: "28px",
             fontSize: "clamp(14px, 2.5vw, 28px)",
             maxWidth: "600px",
             textAlign: "center",
@@ -138,7 +115,6 @@ export default function Home() {
           }}>
             Generate QR codes instantly for students to scan and check in. Manage classroom attendance efficiently and keep every session organized.
           </p>
-
         </div>
       </div>
     </div>

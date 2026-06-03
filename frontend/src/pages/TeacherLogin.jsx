@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
+import BaseLayout, { responsiveInputStyle, responsiveButtonStyle } from "../components/BaseLayout";
 import { getApiBaseUrl } from "../services/apiBase";
+import { AUTH_ROLES, setAuthRole } from "../services/authRole";
 
 export default function TeacherLogin() {
   const navigate = useNavigate();
@@ -26,6 +28,26 @@ export default function TeacherLogin() {
       return;
     }
 
+    try {
+      const params = new URLSearchParams({ email: email.trim().toLowerCase() });
+      const profileRes = await fetch(`${BASE_URL}/lecturers/password-policy?${params.toString()}`);
+      const profileData = await profileRes.json().catch(() => ({}));
+      const hasLecturerProfile =
+        profileRes.ok &&
+        Boolean(profileData.title || profileData.fullName || profileData.mustChangePassword);
+
+      if (!hasLecturerProfile) {
+        await supabase.auth.signOut();
+        setError("This account is not registered as a lecturer.");
+        return;
+      }
+    } catch (err) {
+      await supabase.auth.signOut();
+      setError("Unable to verify lecturer account.");
+      return;
+    }
+
+    setAuthRole(AUTH_ROLES.TEACHER);
     navigate("/teacher-courses");
   };
 
@@ -58,163 +80,77 @@ export default function TeacherLogin() {
     }
   };
 
+  const headerActions = [
+    {
+      label: "Home",
+      onClick: () => navigate("/home"),
+      style: {
+        border: "1px solid white",
+        background: "rgba(0,0,0,0.35)",
+        color: "white",
+      }
+    }
+  ];
+
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundImage: "url('/ELTELogo.png')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        position: "relative",
-      }}
+    <BaseLayout
+      headerTitle="Teacher Login"
+      headerActions={headerActions}
+      maxWidth="420px"
     >
-      {/* mask */}
-      <div
+      <input
+        type="email"
+        placeholder="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
         style={{
-          position: "absolute",
-          width: "100%",
-          height: "100%",
-          background: "rgba(0,0,0,0.2)",
+          ...responsiveInputStyle,
+          marginBottom: "15px",
         }}
       />
 
-      <div
+      <input
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
         style={{
-          position: "relative",
-          zIndex: 10,
-          minHeight: "100vh",
+          ...responsiveInputStyle,
+          marginBottom: "20px",
+        }}
+      />
+
+      {error && (
+        <p style={{ color: "red", marginBottom: "10px", fontSize: "clamp(12px, 1.8vw, 14px)", textAlign: "center" }}>
+          {error}
+        </p>
+      )}
+
+      {infoMessage && (
+        <p style={{ color: "#166534", marginBottom: "10px", fontSize: "clamp(12px, 1.8vw, 14px)", textAlign: "center" }}>
+          {infoMessage}
+        </p>
+      )}
+
+      <button
+        onClick={handleLogin}
+        style={{
+          ...responsiveButtonStyle("black", "white"),
+          marginBottom: "10px",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            padding: "24px 5vw 0",
-          }}
-        >
-          <button
-            onClick={() => navigate("/home")}
-            style={{
-              padding: "10px 18px",
-              borderRadius: "18px",
-              border: "1px solid white",
-              background: "rgba(0,0,0,0.35)",
-              color: "white",
-              cursor: "pointer",
-              fontWeight: 600,
-            }}
-          >
-            Home
-          </button>
-        </div>
+        Login
+      </button>
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            minHeight: "calc(100vh - 70px)",
-          }}
-        >
-        {/* caed */}
-        <div
-          style={{
-            width: "90%",
-            maxWidth: "420px",
-            padding: "40px",
-            borderRadius: "24px",
-            background: "rgba(255,255,255,0.92)",
-            backdropFilter: "blur(12px)",
-            textAlign: "center",
-            boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-          }}
-        >
-          <h2
-            style={{
-              marginBottom: "20px",
-              color: "#111827",
-              fontWeight: 800,
-            }}
-          >
-            Teacher Login
-          </h2>
-
-          {/* input */}
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "12px",
-              marginBottom: "15px",
-              borderRadius: "10px",
-              border: "1px solid #ccc",
-            }}
-          />
-
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "12px",
-              marginBottom: "20px",
-              borderRadius: "10px",
-              border: "1px solid #ccc",
-            }}
-          />
-
-          {/* error */}
-          {error && (
-            <p style={{ color: "red", marginBottom: "10px" }}>
-              {error}
-            </p>
-          )}
-
-          {infoMessage && (
-            <p style={{ color: "#166534", marginBottom: "10px" }}>
-              {infoMessage}
-            </p>
-          )}
-
-          {/* button */}
-          <button
-            onClick={handleLogin}
-            style={{
-              width: "100%",
-              padding: "14px",
-              borderRadius: "20px",
-              background: "black",
-              color: "white",
-              border: "none",
-              cursor: "pointer",
-            }}
-          >
-            Login
-          </button>
-
-          <button
-            onClick={handlePasswordResetRequest}
-            style={{
-              marginTop: "10px",
-              width: "100%",
-              padding: "12px",
-              borderRadius: "14px",
-              background: "transparent",
-              color: "#111827",
-              border: "1px solid #9ca3af",
-              cursor: "pointer",
-            }}
-          >
-            Request Password Reset
-          </button>
-        </div>
-        </div>
-      </div>
-    </div>
+      <button
+        onClick={handlePasswordResetRequest}
+        style={{
+          ...responsiveButtonStyle("white", "black"),
+          border: "1px solid #ccc",
+        }}
+      >
+        Request Password Reset
+      </button>
+    </BaseLayout>
   );
 }

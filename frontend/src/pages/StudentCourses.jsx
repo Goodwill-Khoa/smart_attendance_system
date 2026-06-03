@@ -1,70 +1,62 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
+import BaseLayout from "../components/BaseLayout";
 import { getApiBaseUrl } from "../services/apiBase";
 
 export default function StudentCourses({ user }) {
   const navigate = useNavigate();
-
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
   const BASE_URL = getApiBaseUrl();
+  const studentEmail = useMemo(() => user?.email || "", [user]);
 
-  // 获取 JWT
   const getJWT = async () => {
     const { data } = await supabase.auth.getSession();
     return data.session?.access_token;
   };
 
-  // 获取学生课程
   const fetchCourses = async () => {
+    if (!studentEmail) {
+      setCourses([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       const jwt = await getJWT();
-
-      const res = await fetch(`${BASE_URL}/courses/student`, {
-        headers: {
-          Authorization: `Bearer ${jwt}`,
-        },
+      const res = await fetch(`${BASE_URL}/courses?email=${encodeURIComponent(studentEmail)}`, {
+        headers: { Authorization: `Bearer ${jwt}` },
       });
 
-      const data = await res.json();
+      if (!res.ok) throw new Error("Failed to fetch courses");
 
-      setCourses(data);
-      setLoading(false);
+      const data = await res.json();
+      setCourses(data.courses || []);
+      setMessage("");
     } catch (err) {
       console.error(err);
       setMessage("Failed to load courses.");
+    } finally {
       setLoading(false);
     }
   };
 
-  // 点击课程
   const handleCourseClick = async (course) => {
-    setMessage("");
-
     try {
+      setMessage("");
       const jwt = await getJWT();
-
       const res = await fetch(
-        `${BASE_URL}/sessions/active?courseId=${course.id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${jwt}`,
-          },
-        }
+        `${BASE_URL}/sessions?course=${encodeURIComponent(course.id)}&email=${encodeURIComponent(studentEmail)}`,
+        { headers: { Authorization: `Bearer ${jwt}` } }
       );
 
       const data = await res.json();
-
       if (data.active) {
         navigate("/scan", {
-          state: {
-            sessionId: data.sessionId,
-            courseId: course.id,
-            courseName: course.name,
-          },
+          state: { sessionId: data.sessionId, courseId: course.id, courseName: course.name }
         });
       } else {
         setMessage(`"${course.name}" has not started yet.`);
@@ -75,7 +67,6 @@ export default function StudentCourses({ user }) {
     }
   };
 
-  // 登出
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/", { replace: true });
@@ -86,173 +77,66 @@ export default function StudentCourses({ user }) {
   }, []);
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundImage: "url('/ELTELogo.png')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        position: "relative",
-      }}
+    <BaseLayout
+      headerTitle="Student Courses"
+      headerActions={[{ label: "Logout", onClick: handleLogout, style: { background: "black" } }]}
     >
-      {/* 遮罩 */}
-      <div
-        style={{
-          position: "absolute",
-          width: "100%",
-          height: "100%",
-          background: "rgba(0,0,0,0.2)",
-          pointerEvents: "none",
-        }}
-      />
+      <h2 style={{ textAlign: "center", marginBottom: "10px", fontSize: "clamp(20px, 4vw, 24px)" }}>
+        My Courses
+      </h2>
 
-      <div style={{ position: "relative", zIndex: 10 }}>
-        {/* 顶部导航 */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            padding: "clamp(20px,4vw,40px) 5vw",
-            color: "white",
-            alignItems: "center",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "clamp(18px,4vw,24px)",
-              fontWeight: "bold",
-            }}
-          >
-            Student Courses
-          </div>
+      <p style={{ textAlign: "center", color: "#666", marginBottom: "35px", fontSize: "clamp(13px, 1.8vw, 14px)" }}>
+        Click on a course to scan attendance if a session is active.
+      </p>
 
-          <button
-            onClick={handleLogout}
-            style={{
-              padding: "12px 24px",
-              borderRadius: "20px",
-              border: "none",
-              background: "black",
-              color: "white",
-              cursor: "pointer",
-              fontSize: "16px",
-            }}
-          >
-            Logout
-          </button>
-        </div>
-
-        {/* 主体 */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            minHeight: "80vh",
-            padding: "20px",
-          }}
-        >
-          <div
-            style={{
-              width: "100%",
-              maxWidth: "600px",
-              padding: "40px",
-              borderRadius: "24px",
-              background: "rgba(255,255,255,0.92)",
-              backdropFilter: "blur(12px)",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-            }}
-          >
-            <h2
+      {loading ? (
+        <p style={{ textAlign: "center", color: "#666" }}>Loading courses...</p>
+      ) : courses.length === 0 ? (
+        <p style={{ textAlign: "center", color: "#999", marginTop: "30px" }}>
+          No courses assigned yet. Contact your instructor.
+        </p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          {courses.map((course) => (
+            <button
+              key={course.id}
+              onClick={() => handleCourseClick(course)}
               style={{
-                textAlign: "center",
-                marginBottom: "10px",
+                padding: "clamp(14px, 3vw, 20px)",
+                borderRadius: "18px",
+                border: "none",
+                cursor: "pointer",
+                background: course.active ? "black" : "rgba(0,0,0,0.1)",
+                color: course.active ? "white" : "#333",
+                transition: "0.2s",
+                textAlign: "left",
               }}
             >
-              My Courses
-            </h2>
-
-            <p
-              style={{
-                textAlign: "center",
-                color: "#666",
-                marginBottom: "35px",
-              }}
-            >
-              Logged in as <b>{user?.email}</b>
-            </p>
-
-            {loading ? (
-              <p style={{ textAlign: "center" }}>Loading courses...</p>
-            ) : (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "18px",
-                }}
-              >
-                {courses.map((course) => (
-                  <button
-                    key={course.id}
-                    onClick={() => handleCourseClick(course)}
-                    style={{
-                      padding: "20px",
-                      borderRadius: "18px",
-                      border: "none",
-                      cursor: "pointer",
-                      background: course.active
-                        ? "black"
-                        : "rgba(0,0,0,0.1)",
-                      color: course.active ? "white" : "#333",
-                      transition: "0.2s",
-                      textAlign: "left",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: "20px",
-                        fontWeight: "bold",
-                        marginBottom: "6px",
-                      }}
-                    >
-                      {course.name}
-                    </div>
-
-                    <div
-                      style={{
-                        fontSize: "14px",
-                        opacity: 0.85,
-                      }}
-                    >
-                      {course.active
-                        ? "Class is active • Click to scan attendance"
-                        : "Class has not started yet"}
-                    </div>
-                  </button>
-                ))}
+              <div style={{ fontSize: "clamp(16px, 4vw, 20px)", fontWeight: "bold", marginBottom: "6px", wordBreak: "break-word" }}>
+                {course.name}
               </div>
-            )}
-
-            {/* Message */}
-            {message && (
-              <div
-                style={{
-                  marginTop: "25px",
-                  padding: "16px",
-                  borderRadius: "14px",
-                  background: "rgba(255,0,0,0.08)",
-                  color: "red",
-                  textAlign: "center",
-                  fontWeight: "bold",
-                }}
-              >
-                {message}
+              <div style={{ fontSize: "clamp(12px, 2.5vw, 14px)", opacity: 0.85 }}>
+                {course.active ? "Class is active • Click to scan attendance" : "Class has not started yet"}
               </div>
-            )}
-          </div>
+            </button>
+          ))}
         </div>
-      </div>
-    </div>
+      )}
+
+      {message && (
+        <div style={{
+          marginTop: "25px",
+          padding: "16px",
+          borderRadius: "14px",
+          background: "rgba(255,0,0,0.08)",
+          color: "red",
+          textAlign: "center",
+          fontWeight: "bold",
+          fontSize: "clamp(12px, 1.8vw, 14px)",
+        }}>
+          {message}
+        </div>
+      )}
+    </BaseLayout>
   );
 }

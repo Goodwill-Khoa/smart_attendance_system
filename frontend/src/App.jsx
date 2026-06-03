@@ -88,9 +88,19 @@ export default function App() {
 
     const persistedRole = getAuthRole();
     if (!persistedRole) {
-      const provider = rawUser?.app_metadata?.provider;
-      const onOAuthCallbackPath = window.location.pathname.startsWith("/auth/callback");
-      if (onOAuthCallbackPath && (provider === "google" || provider === "azure")) {
+      const provider = (rawUser?.app_metadata?.provider || "").toLowerCase();
+      const providers = Array.isArray(rawUser?.app_metadata?.providers)
+        ? rawUser.app_metadata.providers.map((p) => (p || "").toLowerCase())
+        : [];
+      const isSocialStudentSso =
+        provider === "google" ||
+        provider === "azure" ||
+        provider === "azure_oidc" ||
+        providers.includes("google") ||
+        providers.includes("azure") ||
+        providers.includes("azure_oidc");
+
+      if (isSocialStudentSso) {
         setAuthRole(AUTH_ROLES.STUDENT);
         setUser({ ...rawUser, email });
         setRole(AUTH_ROLES.STUDENT);

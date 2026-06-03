@@ -1,16 +1,29 @@
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import BaseLayout, { responsiveInputStyle, responsiveButtonStyle } from "../components/BaseLayout";
 import { FcGoogle } from "react-icons/fc";
 import { FaMicrosoft } from "react-icons/fa";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { AUTH_ROLES, setAuthRole } from "../services/authRole";
+import { getApiBaseUrl } from "../services/apiBase";
 
 export default function Login() {
   const navigate = useNavigate();
-  const azureEnabled = import.meta.env.VITE_ENABLE_AZURE_SSO === "true";
+  const location = useLocation();
+  const BASE_URL = getApiBaseUrl();
+  const azureEnabled = import.meta.env.VITE_ENABLE_AZURE_SSO !== "false";
+  const oauthRedirectTo = (
+    import.meta.env.VITE_OAUTH_REDIRECT_URL || `${window.location.origin}/auth/callback`
+  ).trim();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (location.state?.error) {
+      setError(location.state.error);
+    }
+  }, [location.state]);
 
   const normalizeAuthError = (message) => {
     if (!message) return "Login failed.";
@@ -20,14 +33,30 @@ export default function Login() {
     return message;
   };
 
+  const isLecturerEmail = async (rawEmail) => {
+    const emailToCheck = (rawEmail || "").trim().toLowerCase();
+    if (!emailToCheck) return false;
+
+    try {
+      const params = new URLSearchParams({ email: emailToCheck });
+      const res = await fetch(`${BASE_URL}/lecturers/password-policy?${params.toString()}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return false;
+      return Boolean(data.title || data.fullName || data.mustChangePassword);
+    } catch {
+      return false;
+    }
+  };
+
   const handleGoogleLogin = async () => {
     setError("");
+    setAuthRole(AUTH_ROLES.STUDENT);
     await supabase.auth.signOut();
 
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: window.location.origin
+        redirectTo: oauthRedirectTo
       }
     });
 
@@ -38,6 +67,7 @@ export default function Login() {
 
   const handleMicrosoftLogin = async () => {
     setError("");
+    setAuthRole(AUTH_ROLES.STUDENT);
 
     if (!azureEnabled) {
       setError("Microsoft SSO is not enabled for this project. Use email/password for now.");
@@ -47,7 +77,7 @@ export default function Login() {
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: "azure",
       options: {
-        redirectTo: window.location.origin,
+        redirectTo: oauthRedirectTo,
         queryParams: {
           prompt: "select_account"
         }
@@ -77,6 +107,14 @@ export default function Login() {
       return;
     }
 
+    const lecturer = await isLecturerEmail(email);
+    if (lecturer) {
+      await supabase.auth.signOut();
+      setError("Lecturer accounts must sign in from Teacher Login.");
+      return;
+    }
+
+    setAuthRole(AUTH_ROLES.STUDENT);
     navigate("/student", { replace: true });
   };
 

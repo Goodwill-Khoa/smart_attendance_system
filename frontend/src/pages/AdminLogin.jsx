@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import BaseLayout, { responsiveInputStyle, responsiveButtonStyle } from "../components/BaseLayout";
 import { getApiBaseUrl } from "../services/apiBase";
+import { AUTH_ROLES, setAuthRole } from "../services/authRole";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
@@ -54,6 +55,7 @@ export default function AdminLogin() {
         setInfoMessage("Bootstrap admin access granted. Assign a permanent admin from the dashboard.");
       }
 
+      setAuthRole(AUTH_ROLES.ADMIN);
       navigate("/admin", { replace: true });
     } catch (err) {
       console.error(err);

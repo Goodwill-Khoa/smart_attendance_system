@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { supabase } from "./services/supabase";
+import { AUTH_ROLES, clearAuthRole, getAuthRole } from "./services/authRole";
 
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -13,27 +14,46 @@ import StudentCourses from "./pages/StudentCourses";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import StudentFlow from "./pages/StudentFlow";
+import AuthCallback from "./pages/AuthCallback";
 
-function ProtectedRoute({ user, children }) {
-  if (!user) return <Navigate to="/login" />;
+function StudentRoute({ user, role, children }) {
+  if (!user) return <Navigate to="/login" replace />;
+  if (role !== AUTH_ROLES.STUDENT) return <Navigate to="/home" replace />;
+  const email = (user.email || "").toLowerCase();
   return children;
 }
 
-function ElteStudentRoute({ user, children }) {
-  if (!user) return <Navigate to="/login" replace />;
-  const email = (user.email || "").toLowerCase();
+function TeacherRoute({ user, role, children }) {
+  if (!user) return <Navigate to="/teacher-login" replace />;
+  if (role !== AUTH_ROLES.TEACHER) return <Navigate to="/home" replace />;
   return children;
+}
+
+function AdminRoute({ user, role, children }) {
+  if (!user) return <Navigate to="/admin-login" replace />;
+  if (role !== AUTH_ROLES.ADMIN) return <Navigate to="/home" replace />;
+  return children;
+}
+
+function roleHomePath(role) {
+  if (role === AUTH_ROLES.ADMIN) return "/admin";
+  if (role === AUTH_ROLES.TEACHER) return "/teacher-courses";
+  if (role === AUTH_ROLES.STUDENT) return "/student";
+  return "/home";
 }
 
 export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [role, setRole] = useState(null);
   const [error, setError] = useState("");
 
   //  统一处理用户（兼容 Microsoft 没有 email）
   const handleUser = async (rawUser) => {
     if (!rawUser) {
       setUser(null);
+      setRole(null);
+      clearAuthRole();
       return;
     }
 
@@ -53,8 +73,18 @@ export default function App() {
 
     console.log(" Login email:", email);
 
-    // 用 Azure 限制域名
+    const persistedRole = getAuthRole();
+    if (!persistedRole) {
+      setError("Session found without role context. Please sign in again from the correct portal.");
+      await supabase.auth.signOut();
+      setUser(null);
+      setRole(null);
+      clearAuthRole();
+      return;
+    }
+
     setUser({ ...rawUser, email });
+    setRole(persistedRole);
     setError("");
   };
 
@@ -109,55 +139,83 @@ export default function App() {
         {/* 首页：已登录自动跳 scan */}
         <Route
           path="/home"
-          element={user ? <Navigate to="/student" /> : <Home />}
+          element={user ? <Navigate to={roleHomePath(role)} replace /> : <Home />}
         />
 
         {/* 登录页 */}
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={user ? <Navigate to={roleHomePath(role)} replace /> : <Login />} />
+
+        <Route path="/auth/callback" element={<AuthCallback />} />
 
         {/* 教师登录页 */}
-        <Route path="/teacher-login" element={<TeacherLogin />} />
+        <Route path="/teacher-login" element={user ? <Navigate to={roleHomePath(role)} replace /> : <TeacherLogin />} />
 
-        <Route path="/admin-login" element={<AdminLogin />} />
+        <Route path="/admin-login" element={user ? <Navigate to={roleHomePath(role)} replace /> : <AdminLogin />} />
 
-        <Route path="/teacher-password" element={<TeacherPassword />} />
+        <Route
+          path="/teacher-password"
+          element={
+            <TeacherRoute user={user} role={role}>
+              <TeacherPassword />
+            </TeacherRoute>
+          }
+        />
 
         {/* 教师课程 */}
         <Route
           path="/teacher-courses"
-          element={<TeacherCourses user={user} />}
+          element={
+            <TeacherRoute user={user} role={role}>
+              <TeacherCourses user={user} />
+            </TeacherRoute>
+          }
         />
 
         <Route
           path="/admin"
-          element={<AdminDashboard />}
+          element={
+            <AdminRoute user={user} role={role}>
+              <AdminDashboard />
+            </AdminRoute>
+          }
         />
 
         {/* 教师二维码 */}
-        <Route path="/teacher" element={<Teacher />} />
+        <Route
+          path="/teacher"
+          element={
+            <TeacherRoute user={user} role={role}>
+              <Teacher />
+            </TeacherRoute>
+          }
+        />
 
         {/* 学生课程 */}
         <Route
           path="/student"
           element={
-            <ElteStudentRoute user={user}>
+            <StudentRoute user={user} role={role}>
               <StudentFlow user={user} />
-            </ElteStudentRoute>
+            </StudentRoute>
           }
         />
 
         <Route
           path="/courses"
-          element={<StudentCourses user={user} />}
+          element={
+            <StudentRoute user={user} role={role}>
+              <StudentCourses user={user} />
+            </StudentRoute>
+          }
         />
 
         {/* 扫码页（受保护） */}
         <Route
           path="/scan"
           element={
-            <ElteStudentRoute user={user}>
+            <StudentRoute user={user} role={role}>
               <Scan user={user} />
-            </ElteStudentRoute>
+            </StudentRoute>
           }
         />
 

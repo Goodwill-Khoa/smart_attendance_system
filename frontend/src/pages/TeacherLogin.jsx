@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import BaseLayout, { responsiveInputStyle, responsiveButtonStyle } from "../components/BaseLayout";
 import { getApiBaseUrl } from "../services/apiBase";
+import { AUTH_ROLES, setAuthRole } from "../services/authRole";
 
 export default function TeacherLogin() {
   const navigate = useNavigate();
@@ -27,6 +28,26 @@ export default function TeacherLogin() {
       return;
     }
 
+    try {
+      const params = new URLSearchParams({ email: email.trim().toLowerCase() });
+      const profileRes = await fetch(`${BASE_URL}/lecturers/password-policy?${params.toString()}`);
+      const profileData = await profileRes.json().catch(() => ({}));
+      const hasLecturerProfile =
+        profileRes.ok &&
+        Boolean(profileData.title || profileData.fullName || profileData.mustChangePassword);
+
+      if (!hasLecturerProfile) {
+        await supabase.auth.signOut();
+        setError("This account is not registered as a lecturer.");
+        return;
+      }
+    } catch (err) {
+      await supabase.auth.signOut();
+      setError("Unable to verify lecturer account.");
+      return;
+    }
+
+    setAuthRole(AUTH_ROLES.TEACHER);
     navigate("/teacher-courses");
   };
 
@@ -131,25 +152,5 @@ export default function TeacherLogin() {
         Request Password Reset
       </button>
     </BaseLayout>
-  );
-}
-            onClick={handlePasswordResetRequest}
-            style={{
-              marginTop: "10px",
-              width: "100%",
-              padding: "12px",
-              borderRadius: "14px",
-              background: "transparent",
-              color: "#111827",
-              border: "1px solid #9ca3af",
-              cursor: "pointer",
-            }}
-          >
-            Request Password Reset
-          </button>
-        </div>
-        </div>
-      </div>
-    </div>
   );
 }

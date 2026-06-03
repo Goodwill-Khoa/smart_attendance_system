@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import BaseLayout, { responsiveButtonStyle } from "../components/BaseLayout";
-import { AUTH_ROLES, setAuthRole } from "../services/authRole";
+import { AUTH_ROLES, clearAuthRole, setAuthRole } from "../services/authRole";
 import { getApiBaseUrl } from "../services/apiBase";
 import { syncAuthenticatedUser } from "../services/authSync";
 
@@ -13,6 +13,23 @@ export default function AuthCallback() {
 
   useEffect(() => {
     const finishOAuthSignIn = async () => {
+      const resolveOAuthEmail = (oauthUser) => {
+        return (
+          oauthUser?.email ||
+          oauthUser?.user_metadata?.email ||
+          oauthUser?.user_metadata?.preferred_username ||
+          oauthUser?.user_metadata?.custom_claims?.email ||
+          oauthUser?.user_metadata?.upn ||
+          oauthUser?.identities?.[0]?.identity_data?.email ||
+          oauthUser?.identities?.[0]?.identity_data?.preferred_username ||
+          oauthUser?.identities?.[0]?.identity_data?.upn ||
+          ""
+        )
+          .toString()
+          .trim()
+          .toLowerCase();
+      };
+
       const url = new URL(window.location.href);
       const code = url.searchParams.get("code");
 
@@ -39,17 +56,11 @@ export default function AuthCallback() {
       }
 
       const user = session?.user;
-      const email = (
-        user?.email ||
-        user?.user_metadata?.email ||
-        user?.user_metadata?.preferred_username ||
-        ""
-      )
-        .trim()
-        .toLowerCase();
+      const email = resolveOAuthEmail(user);
 
       if (!email) {
         await supabase.auth.signOut();
+        clearAuthRole();
         navigate("/login", {
           replace: true,
           state: { error: "Cannot read your account email from the SSO provider." },
@@ -57,12 +68,13 @@ export default function AuthCallback() {
         return;
       }
 
-      const isElteStudentEmail = /^[^@]+@[^@]+\.elte\.hu$/.test(email);
+      const isElteStudentEmail = /^[^@]+@(?:[a-z0-9-]+\.)*elte\.hu$/i.test(email);
       if (!isElteStudentEmail) {
         await supabase.auth.signOut();
+        clearAuthRole();
         navigate("/login", {
           replace: true,
-          state: { error: "Use an *.elte.hu account for student sign in." },
+          state: { error: "Use an @elte.hu or *.elte.hu account for student sign in." },
         });
         return;
       }
@@ -77,6 +89,7 @@ export default function AuthCallback() {
 
         if (lecturerProfileExists) {
           await supabase.auth.signOut();
+          clearAuthRole();
           navigate("/teacher-login", {
             replace: true,
             state: { error: "Lecturer accounts must use Teacher Login." },
@@ -87,10 +100,14 @@ export default function AuthCallback() {
         // Ignore network hiccups and continue with standard student path.
       }
 
+      // Set role first so App auth-state listener does not reject the fresh session.
+      setAuthRole(AUTH_ROLES.STUDENT);
+
       try {
         await syncAuthenticatedUser("STUDENT", session?.access_token);
       } catch (syncError) {
         await supabase.auth.signOut();
+        clearAuthRole();
         navigate("/login", {
           replace: true,
           state: { error: syncError.message || "Unable to initialize user session." },
@@ -98,7 +115,6 @@ export default function AuthCallback() {
         return;
       }
 
-      setAuthRole(AUTH_ROLES.STUDENT);
       navigate("/student", { replace: true });
     };
 

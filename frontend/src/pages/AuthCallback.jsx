@@ -4,6 +4,7 @@ import { supabase } from "../services/supabase";
 import BaseLayout, { responsiveButtonStyle } from "../components/BaseLayout";
 import { AUTH_ROLES, setAuthRole } from "../services/authRole";
 import { getApiBaseUrl } from "../services/apiBase";
+import { syncAuthenticatedUser } from "../services/authSync";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -84,6 +85,17 @@ export default function AuthCallback() {
         }
       } catch {
         // Ignore network hiccups and continue with standard student path.
+      }
+
+      try {
+        await syncAuthenticatedUser("STUDENT", session?.access_token);
+      } catch (syncError) {
+        await supabase.auth.signOut();
+        navigate("/login", {
+          replace: true,
+          state: { error: syncError.message || "Unable to initialize user session." },
+        });
+        return;
       }
 
       setAuthRole(AUTH_ROLES.STUDENT);

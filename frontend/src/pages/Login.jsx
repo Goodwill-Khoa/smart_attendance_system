@@ -6,6 +6,7 @@ import { FaMicrosoft } from "react-icons/fa";
 import { useEffect, useState } from "react";
 import { AUTH_ROLES, setAuthRole } from "../services/authRole";
 import { getApiBaseUrl } from "../services/apiBase";
+import { syncAuthenticatedUser } from "../services/authSync";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -111,6 +112,14 @@ export default function Login() {
     if (lecturer) {
       await supabase.auth.signOut();
       setError("Lecturer accounts must sign in from Teacher Login.");
+      return;
+    }
+
+    try {
+      await syncAuthenticatedUser("STUDENT");
+    } catch (syncError) {
+      await supabase.auth.signOut();
+      setError(syncError.message || "Unable to initialize user session.");
       return;
     }
 

@@ -14,6 +14,16 @@ class LoginResponse(BaseModel):
     name: str
     role: str
 
+class AuthSessionSyncRequest(BaseModel):
+    role: str  # STUDENT or TEACHER
+
+class AuthSessionSyncResponse(BaseModel):
+    userId: UUID
+    email: str
+    name: str
+    role: str
+    isAdmin: bool
+
 # --- Session Schemas ---
 class SessionCreate(BaseModel):
     course_id: UUID

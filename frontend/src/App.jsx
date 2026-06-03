@@ -19,13 +19,7 @@ import AuthCallback from "./pages/AuthCallback";
 function StudentRoute({ user, role, children }) {
   if (!user) return <Navigate to="/login" replace />;
   if (role !== AUTH_ROLES.STUDENT) return <Navigate to="/home" replace />;
-
   const email = (user.email || "").toLowerCase();
-  const isElteStudentEmail = /^[^@]+@[^@]+\.elte\.hu$/.test(email);
-  if (!isElteStudentEmail) {
-    return <Navigate to="/login" replace />;
-  }
-
   return children;
 }
 
@@ -50,6 +44,7 @@ function roleHomePath(role) {
 
 export default function App() {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [role, setRole] = useState(null);
   const [error, setError] = useState("");
 
@@ -97,17 +92,22 @@ export default function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       handleUser(data.session?.user);
+      setLoading(false);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_, session) => {
         handleUser(session?.user);
+        setLoading(false);
       }
     );
 
     return () => listener.subscription.unsubscribe();
   }, []);
-
+  
+  if (loading) {
+    return <div>Loading auth...</div>;
+  }
   return (
     <BrowserRouter>
 

@@ -13,6 +13,23 @@ export default function AuthCallback() {
 
   useEffect(() => {
     const finishOAuthSignIn = async () => {
+      const resolveOAuthEmail = (oauthUser) => {
+        return (
+          oauthUser?.email ||
+          oauthUser?.user_metadata?.email ||
+          oauthUser?.user_metadata?.preferred_username ||
+          oauthUser?.user_metadata?.custom_claims?.email ||
+          oauthUser?.user_metadata?.upn ||
+          oauthUser?.identities?.[0]?.identity_data?.email ||
+          oauthUser?.identities?.[0]?.identity_data?.preferred_username ||
+          oauthUser?.identities?.[0]?.identity_data?.upn ||
+          ""
+        )
+          .toString()
+          .trim()
+          .toLowerCase();
+      };
+
       const url = new URL(window.location.href);
       const code = url.searchParams.get("code");
 
@@ -39,14 +56,7 @@ export default function AuthCallback() {
       }
 
       const user = session?.user;
-      const email = (
-        user?.email ||
-        user?.user_metadata?.email ||
-        user?.user_metadata?.preferred_username ||
-        ""
-      )
-        .trim()
-        .toLowerCase();
+      const email = resolveOAuthEmail(user);
 
       if (!email) {
         await supabase.auth.signOut();

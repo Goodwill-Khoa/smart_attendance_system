@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { supabase } from "./services/supabase";
-import { AUTH_ROLES, clearAuthRole, getAuthRole } from "./services/authRole";
+import { AUTH_ROLES, clearAuthRole, getAuthRole, setAuthRole } from "./services/authRole";
 
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -48,6 +48,23 @@ export default function App() {
   const [role, setRole] = useState(null);
   const [error, setError] = useState("");
 
+  const resolveUserEmail = (rawUser) => {
+    return (
+      rawUser?.email ||
+      rawUser?.user_metadata?.email ||
+      rawUser?.user_metadata?.preferred_username ||
+      rawUser?.user_metadata?.custom_claims?.email ||
+      rawUser?.user_metadata?.upn ||
+      rawUser?.identities?.[0]?.identity_data?.email ||
+      rawUser?.identities?.[0]?.identity_data?.preferred_username ||
+      rawUser?.identities?.[0]?.identity_data?.upn ||
+      ""
+    )
+      .toString()
+      .trim()
+      .toLowerCase();
+  };
+
   //  统一处理用户（兼容 Microsoft 没有 email）
   const handleUser = async (rawUser) => {
     if (!rawUser) {
@@ -57,10 +74,7 @@ export default function App() {
     }
 
     // 兼容 Microsoft
-    const email =
-      rawUser.email ||
-      rawUser.user_metadata?.email ||
-      rawUser.user_metadata?.preferred_username;
+    const email = resolveUserEmail(rawUser);
 
     if (!email) {
       console.log(" No email info:", rawUser);
@@ -74,6 +88,16 @@ export default function App() {
 
     const persistedRole = getAuthRole();
     if (!persistedRole) {
+      const provider = rawUser?.app_metadata?.provider;
+      const onOAuthCallbackPath = window.location.pathname.startsWith("/auth/callback");
+      if (onOAuthCallbackPath && (provider === "google" || provider === "azure")) {
+        setAuthRole(AUTH_ROLES.STUDENT);
+        setUser({ ...rawUser, email });
+        setRole(AUTH_ROLES.STUDENT);
+        setError("");
+        return;
+      }
+
       setError("Session found without role context. Please sign in again from the correct portal.");
       await supabase.auth.signOut();
       setUser(null);

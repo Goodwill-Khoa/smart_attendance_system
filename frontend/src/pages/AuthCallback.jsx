@@ -68,13 +68,13 @@ export default function AuthCallback() {
         return;
       }
 
-      const isElteStudentEmail = /^[^@]+@[^@]+\.elte\.hu$/.test(email);
+      const isElteStudentEmail = /^[^@]+@(?:[a-z0-9-]+\.)*elte\.hu$/i.test(email);
       if (!isElteStudentEmail) {
         await supabase.auth.signOut();
         clearAuthRole();
         navigate("/login", {
           replace: true,
-          state: { error: "Use an *.elte.hu account for student sign in." },
+          state: { error: "Use an @elte.hu or *.elte.hu account for student sign in." },
         });
         return;
       }

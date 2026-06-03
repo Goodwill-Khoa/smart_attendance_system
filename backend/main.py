@@ -518,6 +518,52 @@ def login(request: schemas.LoginRequest, db: Session = Depends(get_db)):
         "role": user.role.value
     }
 
+@app.post("/auth/session-sync", response_model=schemas.AuthSessionSyncResponse)
+def auth_session_sync(
+    request: schemas.AuthSessionSyncRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    email = (current_user.get("email") or "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=401, detail="Authenticated user email is missing")
+
+    name = (current_user.get("name") or "").strip() or email.split("@")[0]
+
+    try:
+        requested_role = UserRole(request.role.strip().upper())
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid role. Use STUDENT or TEACHER.")
+
+    user = db.query(models.User).filter(models.User.email == email).first()
+
+    if not user:
+        user = models.User(
+            id=uuid.uuid4(),
+            email=email,
+            name=name,
+            role=requested_role,
+            is_admin=False,
+        )
+        db.add(user)
+    else:
+        user.name = name
+        if requested_role == UserRole.TEACHER:
+            user.role = UserRole.TEACHER
+        elif user.role != UserRole.TEACHER:
+            user.role = UserRole.STUDENT
+
+    db.commit()
+    db.refresh(user)
+
+    return {
+        "userId": str(user.id),
+        "email": user.email,
+        "name": user.name,
+        "role": user.role.value,
+        "isAdmin": bool(user.is_admin),
+    }
+
 @app.post("/sessions", response_model=schemas.SessionResponse)
 def create_session(session_req: schemas.SessionCreate, db: Session = Depends(get_db)):
     course = db.query(models.Course).filter(models.Course.id == session_req.course_id).first()

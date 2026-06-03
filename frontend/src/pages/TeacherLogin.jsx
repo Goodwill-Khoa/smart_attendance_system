@@ -4,6 +4,7 @@ import { supabase } from "../services/supabase";
 import BaseLayout, { responsiveInputStyle, responsiveButtonStyle } from "../components/BaseLayout";
 import { getApiBaseUrl } from "../services/apiBase";
 import { AUTH_ROLES, setAuthRole } from "../services/authRole";
+import { syncAuthenticatedUser } from "../services/authSync";
 
 export default function TeacherLogin() {
   const navigate = useNavigate();
@@ -44,6 +45,14 @@ export default function TeacherLogin() {
     } catch (err) {
       await supabase.auth.signOut();
       setError("Unable to verify lecturer account.");
+      return;
+    }
+
+    try {
+      await syncAuthenticatedUser("TEACHER");
+    } catch (syncError) {
+      await supabase.auth.signOut();
+      setError(syncError.message || "Unable to initialize teacher session.");
       return;
     }
 

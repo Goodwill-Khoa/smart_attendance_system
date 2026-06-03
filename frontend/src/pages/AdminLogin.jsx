@@ -4,6 +4,7 @@ import { supabase } from "../services/supabase";
 import BaseLayout, { responsiveInputStyle, responsiveButtonStyle } from "../components/BaseLayout";
 import { getApiBaseUrl } from "../services/apiBase";
 import { AUTH_ROLES, setAuthRole } from "../services/authRole";
+import { syncAuthenticatedUser } from "../services/authSync";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
@@ -54,6 +55,8 @@ export default function AdminLogin() {
       if (payload.isBootstrap) {
         setInfoMessage("Bootstrap admin access granted. Assign a permanent admin from the dashboard.");
       }
+
+      await syncAuthenticatedUser("TEACHER", token);
 
       setAuthRole(AUTH_ROLES.ADMIN);
       navigate("/admin", { replace: true });

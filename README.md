@@ -42,7 +42,8 @@ Frontend uses `frontend/.env`:
 VITE_API_BASE_URL=http://127.0.0.1:8000
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-VITE_ENABLE_AZURE_SSO=false
+VITE_ENABLE_AZURE_SSO=true
+VITE_OAUTH_REDIRECT_URL=http://127.0.0.1:5173/auth/callback
 ```
 
 If the files do not exist yet, copy from `backend/.env.example` and `frontend/.env.example`.
@@ -105,6 +106,18 @@ Recommended Vercel project settings:
 - `VITE_SUPABASE_URL=https://your-project.supabase.co`
 - `VITE_SUPABASE_ANON_KEY=your_supabase_anon_key`
 - `VITE_ENABLE_AZURE_SSO=true` if Azure SSO should be visible
+- `VITE_OAUTH_REDIRECT_URL=https://your-frontend-domain/auth/callback`
+
+For your live deployment, use the actual frontend domain here:
+- `https://smartattendancesystem2.vercel.app/auth/callback`
+
+In Supabase Auth settings, add the same redirect URL to the allowed callback URLs for both Google and Microsoft providers. Keep the local callback URL as well if you still run the app from `localhost`.
+
+For Microsoft SSO specifically:
+- In Microsoft Entra app registration, use the Supabase callback as the Web redirect URI: `https://<your-supabase-project-ref>.supabase.co/auth/v1/callback`
+- In Supabase Auth URL settings, set the Site URL to `https://smartattendancesystem2.vercel.app`
+- Add `https://smartattendancesystem2.vercel.app/auth/callback` and your local callback to Supabase redirect URLs
+- If Microsoft returns `Error getting user email from external provider`, add the `email` optional claim to the ID token in Entra and make sure the ELTE account has a usable mailbox/UPN
 
 4. Deploy.
 
@@ -220,9 +233,10 @@ This keeps reporting artifacts separate from source-code commits.
 1. Create a release branch and freeze feature changes.
 2. Set production secrets:
 	- Backend: `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPERUSER_KEY`.
-	- Frontend: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_ENABLE_AZURE_SSO=true` (if Azure SSO is enabled).
+	- Frontend: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_ENABLE_AZURE_SSO=true`, `VITE_OAUTH_REDIRECT_URL=https://your-frontend-domain/auth/callback`.
     - Frontend also needs `VITE_API_BASE_URL` pointing to the deployed backend.
 3. In Supabase Auth settings:
+	- Enable Google provider.
 	- Enable Azure provider (if required).
 	- Configure production redirect URLs.
 4. Run production smoke tests:

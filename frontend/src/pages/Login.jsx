@@ -98,6 +98,8 @@ export default function Login() {
       return;
     }
 
+    setAuthRole(AUTH_ROLES.STUDENT);
+
     const { error: loginError } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,

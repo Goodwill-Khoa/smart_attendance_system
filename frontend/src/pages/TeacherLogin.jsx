@@ -19,6 +19,8 @@ export default function TeacherLogin() {
     setError("");
     setInfoMessage("");
 
+    setAuthRole(AUTH_ROLES.TEACHER);
+
     const { error: loginError } = await supabase.auth.signInWithPassword({
       email,
       password,

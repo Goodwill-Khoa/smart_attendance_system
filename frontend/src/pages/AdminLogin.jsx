@@ -21,6 +21,8 @@ export default function AdminLogin() {
     setInfoMessage("");
     setLoading(true);
 
+    setAuthRole(AUTH_ROLES.ADMIN);
+
     const { error: loginError } = await supabase.auth.signInWithPassword({
       email,
       password,

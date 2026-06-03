@@ -52,8 +52,7 @@ export default function App() {
   const handleUser = async (rawUser) => {
     if (!rawUser) {
       setUser(null);
-      setRole(null);
-      clearAuthRole();
+      setRole(getAuthRole());
       return;
     }
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import BaseLayout, { responsiveButtonStyle } from "../components/BaseLayout";
-import { AUTH_ROLES, setAuthRole } from "../services/authRole";
+import { AUTH_ROLES, clearAuthRole, setAuthRole } from "../services/authRole";
 import { getApiBaseUrl } from "../services/apiBase";
 import { syncAuthenticatedUser } from "../services/authSync";
 
@@ -50,6 +50,7 @@ export default function AuthCallback() {
 
       if (!email) {
         await supabase.auth.signOut();
+        clearAuthRole();
         navigate("/login", {
           replace: true,
           state: { error: "Cannot read your account email from the SSO provider." },
@@ -60,6 +61,7 @@ export default function AuthCallback() {
       const isElteStudentEmail = /^[^@]+@[^@]+\.elte\.hu$/.test(email);
       if (!isElteStudentEmail) {
         await supabase.auth.signOut();
+        clearAuthRole();
         navigate("/login", {
           replace: true,
           state: { error: "Use an *.elte.hu account for student sign in." },
@@ -77,6 +79,7 @@ export default function AuthCallback() {
 
         if (lecturerProfileExists) {
           await supabase.auth.signOut();
+          clearAuthRole();
           navigate("/teacher-login", {
             replace: true,
             state: { error: "Lecturer accounts must use Teacher Login." },
@@ -87,10 +90,14 @@ export default function AuthCallback() {
         // Ignore network hiccups and continue with standard student path.
       }
 
+      // Set role first so App auth-state listener does not reject the fresh session.
+      setAuthRole(AUTH_ROLES.STUDENT);
+
       try {
         await syncAuthenticatedUser("STUDENT", session?.access_token);
       } catch (syncError) {
         await supabase.auth.signOut();
+        clearAuthRole();
         navigate("/login", {
           replace: true,
           state: { error: syncError.message || "Unable to initialize user session." },
@@ -98,7 +105,6 @@ export default function AuthCallback() {
         return;
       }
 
-      setAuthRole(AUTH_ROLES.STUDENT);
       navigate("/student", { replace: true });
     };
 

@@ -179,6 +179,8 @@ export default function Login() {
           borderRadius: "12px",
           border: "1px solid #ddd",
           background: "white",
+          color: "#111827",
+          fontWeight: 600,
           cursor: "pointer",
           fontSize: "clamp(14px, 2vw, 16px)",
           marginBottom: "15px",

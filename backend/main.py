@@ -19,12 +19,19 @@ import re
 import requests
 import secrets
 import string
+from pathlib import Path
+from openpyxl import load_workbook
 
 models.Base.metadata.create_all(bind=engine)
 optional_security = HTTPBearer(auto_error=False)
 DEFAULT_LECTURER_PASSWORD = os.getenv("DEFAULT_LECTURER_PASSWORD", "qwe123")
+DEFAULT_TEST_STUDENT_PASSWORD = os.getenv("DEFAULT_TEST_STUDENT_PASSWORD", "qwe123")
 SUPERUSER_USERNAME = os.getenv("SUPERUSER_USERNAME", "superuser")
 SUPERUSER_PASSWORD = os.getenv("SUPERUSER_PASSWORD", "admin123")
+SUPERUSER_EMAIL = os.getenv("SUPERUSER_EMAIL", "superuser@inf.elte.hu")
+SUPERUSER_DISPLAY_NAME = os.getenv("SUPERUSER_DISPLAY_NAME", "Superuser")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+TEACHER_ROSTER_TEMPLATE_PATH = PROJECT_ROOT / "frontend" / "public" / "teacher_roster_template.csv"
 
 def current_semester_label() -> str:
     now = datetime.now(timezone.utc)
@@ -74,6 +81,98 @@ DEFAULT_LECTURERS = [
     ("Zsolt Pelyhe", "zsoltipelyhe@gmail.com", "Lecturer"),
     ("Attila Bence Buzgan", "ba@inf.elte.hu", "Sample Lecturer"),
 ]
+
+FALLBACK_TEACHER_ROSTER_ACCOUNTS = [
+    ("gvq37g@inf.elte.hu", "Bouafia Khawla"),
+    ("i8yvmx@inf.elte.hu", "Buzgán Attila Bence"),
+    ("pc1w7y@inf.elte.hu", "Bátori István"),
+    ("eun3j8@inf.elte.hu", "Dévai Gergely"),
+    ("q1p3pw@inf.elte.hu", "Leskó Dániel"),
+    ("bck909@inf.elte.hu", "Orosz Bálint Dominik"),
+    ("a6f41u@inf.elte.hu", "Pelyhe Zsolt"),
+    ("rep4jh@inf.elte.hu", "Pásztor-Nagy Anett"),
+    ("fykiq8@inf.elte.hu", "Sarmasági Pál György"),
+    ("sa3owu@inf.elte.hu", "Ulbert Attila Dr."),
+]
+
+MENTAL_ACCESS_STUDENTS = [
+    ("student1@inf.elte.hu", "John Doe"),
+    ("student2@inf.elte.hu", "Jane Smith"),
+    ("student3@inf.elte.hu", "Alice Johnson"),
+    ("student4@inf.elte.hu", "Bob Wilson"),
+    ("student5@inf.elte.hu", "Carol Brown"),
+    ("student6@inf.elte.hu", "David Miller"),
+    ("student7@inf.elte.hu", "Emma Davis"),
+    ("student8@inf.elte.hu", "Frank Taylor"),
+    ("student9@inf.elte.hu", "Grace Anderson"),
+    ("student10@inf.elte.hu", "Henry Thomas"),
+    ("student11@inf.elte.hu", "Ivy Jackson"),
+    ("student12@inf.elte.hu", "Jack Martin"),
+    ("a9n7p5@inf.elte.hu", "Goodwill Khoa"),
+    ("lyjzux@inf.elte.hu", "Maxim Curos"),
+    ("lq38sf@inf.elte.hu", "Xuetao Li"),
+    ("ctzr62@inf.elte.hu", "Yacine Naat"),
+    ("fvmi7v@inf.elte.hu", "Kevin Zsombók"),
+]
+MENTAL_ACCESS_STUDENT_MAP = {
+    email.lower(): name for email, name in MENTAL_ACCESS_STUDENTS
+}
+
+
+def get_mental_access_student_name(email: str) -> str | None:
+    return MENTAL_ACCESS_STUDENT_MAP.get((email or "").strip().lower())
+
+
+def is_mental_access_student(email: str) -> bool:
+    return get_mental_access_student_name(email) is not None
+
+
+def get_uploaded_course_student_roster_map(db: Session, course_id: uuid.UUID) -> dict[str, str]:
+    return {
+        item.student_email.lower(): (item.student_name or "").strip()
+        for item in db.query(models.CourseStudentRegistry)
+        .filter(models.CourseStudentRegistry.course_id == course_id)
+        .all()
+    }
+
+
+def get_effective_course_student_roster_map(db: Session, course_id: uuid.UUID) -> dict[str, str]:
+    roster_map = get_uploaded_course_student_roster_map(db, course_id)
+    for email, name in MENTAL_ACCESS_STUDENT_MAP.items():
+        if not roster_map.get(email):
+            roster_map[email] = name
+    return roster_map
+
+
+def load_teacher_roster_template_accounts() -> list[tuple[str, str]]:
+    if not TEACHER_ROSTER_TEMPLATE_PATH.exists():
+        return FALLBACK_TEACHER_ROSTER_ACCOUNTS
+
+    try:
+        with TEACHER_ROSTER_TEMPLATE_PATH.open("r", encoding="utf-8-sig", newline="") as handle:
+            reader = csv.DictReader(handle)
+            accounts: dict[str, str] = {}
+            for row in reader:
+                email = (row.get("email") or "").strip().lower()
+                name = (row.get("name") or "").strip()
+                if not email or not name:
+                    continue
+                accounts[email] = name
+
+            return list(accounts.items()) or FALLBACK_TEACHER_ROSTER_ACCOUNTS
+    except OSError:
+        return FALLBACK_TEACHER_ROSTER_ACCOUNTS
+
+
+def get_teacher_roster_access_map() -> dict[str, str]:
+    return {
+        email.strip().lower(): full_name
+        for email, full_name in load_teacher_roster_template_accounts()
+    }
+
+
+def is_teacher_roster_access_account(email: str) -> bool:
+    return (email or "").strip().lower() in get_teacher_roster_access_map()
 
 def normalized_code(name: str, course_type: str, raw_code: str, used_codes: set[str]) -> str:
     base = (raw_code or "").strip().rstrip(".")
@@ -165,6 +264,54 @@ def seed_default_lecturers():
 
         db.commit()
 
+
+def seed_teacher_roster_access_accounts():
+    with Session(engine) as db:
+        for email, full_name in load_teacher_roster_template_accounts():
+            normalized_email = email.strip().lower()
+            user = db.query(models.User).filter(models.User.email == normalized_email).first()
+            if not user:
+                user = models.User(
+                    id=uuid.uuid4(),
+                    email=normalized_email,
+                    name=full_name,
+                    role=models.UserRole.TEACHER,
+                    is_admin=False,
+                )
+                db.add(user)
+            else:
+                user.name = full_name
+                user.role = models.UserRole.TEACHER
+
+            profile = db.query(models.LecturerProfile).filter(models.LecturerProfile.email == normalized_email).first()
+            now = datetime.now(timezone.utc)
+            if not profile:
+                profile = models.LecturerProfile(
+                    id=uuid.uuid4(),
+                    email=normalized_email,
+                    title="Lecturer",
+                    full_name=full_name,
+                    must_change_password=False,
+                    created_at=now,
+                    updated_at=now,
+                )
+                db.add(profile)
+            else:
+                profile.title = profile.title or "Lecturer"
+                profile.full_name = full_name
+                profile.must_change_password = False
+                profile.updated_at = now
+
+            ensure_local_credential(
+                db,
+                username=normalized_email,
+                password=DEFAULT_LECTURER_PASSWORD,
+                role="TEACHER",
+                user_email=normalized_email,
+            )
+
+        db.commit()
+
 def hash_local_password(password: str) -> str:
     # DB needs credential records; store hashes instead of plain text.
     digest = hashlib.sha256(password.encode("utf-8")).hexdigest()
@@ -223,10 +370,87 @@ def seed_superuser_credential():
         )
         db.commit()
 
+
+def seed_superuser_account():
+    with Session(engine) as db:
+        email = SUPERUSER_EMAIL.strip().lower()
+        user = db.query(models.User).filter(models.User.email == email).first()
+        if not user:
+            user = models.User(
+                id=uuid.uuid4(),
+                email=email,
+                name=SUPERUSER_DISPLAY_NAME,
+                role=models.UserRole.TEACHER,
+                is_admin=True,
+            )
+            db.add(user)
+        else:
+            user.name = SUPERUSER_DISPLAY_NAME
+            user.role = models.UserRole.TEACHER
+            user.is_admin = True
+
+        profile = db.query(models.LecturerProfile).filter(models.LecturerProfile.email == email).first()
+        now = datetime.now(timezone.utc)
+        if not profile:
+            profile = models.LecturerProfile(
+                id=uuid.uuid4(),
+                email=email,
+                title="Superuser",
+                full_name=SUPERUSER_DISPLAY_NAME,
+                must_change_password=False,
+                created_at=now,
+                updated_at=now,
+            )
+            db.add(profile)
+        else:
+            profile.title = "Superuser"
+            profile.full_name = SUPERUSER_DISPLAY_NAME
+            profile.must_change_password = False
+            profile.updated_at = now
+
+        ensure_local_credential(
+            db,
+            username=email,
+            password=SUPERUSER_PASSWORD,
+            role="TEACHER",
+            user_email=email,
+        )
+        ensure_local_credential(
+            db,
+            username=email,
+            password=SUPERUSER_PASSWORD,
+            role="SUPERUSER",
+            user_email=email,
+        )
+        db.commit()
+
+
+def seed_mental_access_students():
+    with Session(engine) as db:
+        for email, full_name in MENTAL_ACCESS_STUDENTS:
+            normalized_email = email.strip().lower()
+            user = db.query(models.User).filter(models.User.email == normalized_email).first()
+            if not user:
+                user = models.User(
+                    id=uuid.uuid4(),
+                    email=normalized_email,
+                    name=full_name,
+                    role=models.UserRole.STUDENT,
+                    is_admin=False,
+                )
+                db.add(user)
+            else:
+                user.name = full_name
+                user.role = models.UserRole.STUDENT
+
+        db.commit()
+
 ensure_schema_upgrades()
 seed_default_courses_if_empty()
 seed_default_lecturers()
+seed_teacher_roster_access_accounts()
 seed_superuser_credential()
+seed_superuser_account()
 
 SUPERUSER_KEY = os.getenv("SUPERUSER_KEY", "admin123")
 TOKEN_WINDOW_SECONDS = 10
@@ -352,7 +576,11 @@ def _find_supabase_user_id_by_email(email: str) -> str | None:
 
     return None
 
-def upsert_supabase_lecturer(email: str, full_name: str, title: str, password: str) -> tuple[bool, str]:
+def upsert_supabase_auth_user(
+    email: str,
+    password: str,
+    user_metadata: dict[str, object] | None = None,
+) -> tuple[bool, str]:
     headers = _supabase_admin_headers()
     if not headers:
         return False, "SUPABASE_SERVICE_ROLE_KEY is not configured."
@@ -361,10 +589,7 @@ def upsert_supabase_lecturer(email: str, full_name: str, title: str, password: s
         "email": email,
         "password": password,
         "email_confirm": True,
-        "user_metadata": {
-            "name": full_name,
-            "title": title,
-        },
+        "user_metadata": user_metadata or {},
     }
 
     try:
@@ -387,10 +612,7 @@ def upsert_supabase_lecturer(email: str, full_name: str, title: str, password: s
             json={
                 "password": password,
                 "email_confirm": True,
-                "user_metadata": {
-                    "name": full_name,
-                    "title": title,
-                },
+                "user_metadata": user_metadata or {},
             },
             timeout=10,
         )
@@ -401,7 +623,89 @@ def upsert_supabase_lecturer(email: str, full_name: str, title: str, password: s
     except requests.RequestException:
         return False, "Supabase auth provisioning request failed."
 
+
+def ensure_supabase_auth_user(
+    email: str,
+    password: str,
+    user_metadata: dict[str, object] | None = None,
+) -> tuple[bool, str]:
+    if not _supabase_admin_headers():
+        return False, "SUPABASE_SERVICE_ROLE_KEY is not configured."
+
+    if _find_supabase_user_id_by_email(email):
+        return True, "Auth account already present."
+
+    return upsert_supabase_auth_user(email=email, password=password, user_metadata=user_metadata)
+
+
+def upsert_supabase_lecturer(email: str, full_name: str, title: str, password: str) -> tuple[bool, str]:
+    return upsert_supabase_auth_user(
+        email=email,
+        password=password,
+        user_metadata={
+            "name": full_name,
+            "title": title,
+        },
+    )
+
+
+def upsert_supabase_student(email: str, full_name: str, password: str) -> tuple[bool, str]:
+    return upsert_supabase_auth_user(
+        email=email,
+        password=password,
+        user_metadata={
+            "name": full_name,
+            "mentalAccess": True,
+        },
+    )
+
+
+def provision_mental_access_student_auth():
+    if not _supabase_admin_headers():
+        return
+
+    for email, full_name in MENTAL_ACCESS_STUDENTS:
+        upsert_supabase_student(email, full_name, DEFAULT_TEST_STUDENT_PASSWORD)
+
+
+def provision_teacher_roster_auth():
+    if not _supabase_admin_headers():
+        return
+
+    for email, full_name in load_teacher_roster_template_accounts():
+        # Upsert (not just ensure) so stale existing auth users also get the expected default password.
+        upsert_supabase_lecturer(
+            email=email,
+            full_name=full_name,
+            title="Lecturer",
+            password=DEFAULT_LECTURER_PASSWORD,
+        )
+
+
+def provision_superuser_auth():
+    if not _supabase_admin_headers():
+        return
+
+    ensure_supabase_auth_user(
+        email=SUPERUSER_EMAIL,
+        password=SUPERUSER_PASSWORD,
+        user_metadata={
+            "name": SUPERUSER_DISPLAY_NAME,
+            "title": "Superuser",
+            "isAdmin": True,
+        },
+    )
+
+
+seed_mental_access_students()
+provision_mental_access_student_auth()
+provision_teacher_roster_auth()
+provision_superuser_auth()
+
 def ensure_teacher_can_manage_course(db: Session, teacher_email: str, course_uuid: uuid.UUID):
+    if is_teacher_roster_access_account(teacher_email):
+        return
+
     assignment = (
         db.query(models.TeacherCourseAssignment)
         .filter(
@@ -423,6 +727,27 @@ def ensure_teacher_can_manage_course(db: Session, teacher_email: str, course_uui
         return
 
     raise HTTPException(status_code=403, detail="You are not assigned to manage this course")
+
+
+def _is_valid_roster_email(email: str) -> bool:
+    # Testing-mode validation focuses on email presence/shape rather than specific domain allowlists.
+    return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email))
+
+
+def _finalize_roster_entries(entries: list[tuple[str, str]], invalid_rows: int) -> tuple[list[tuple[str, str]], int]:
+    dedup: dict[str, str] = {}
+    for email, name in entries:
+        normalized_email = (email or "").strip().lower()
+        normalized_name = (name or "").strip()
+
+        if not normalized_email or not _is_valid_roster_email(normalized_email):
+            invalid_rows += 1
+            continue
+
+        dedup[normalized_email] = normalized_name
+
+    return [(email, dedup[email]) for email in dedup], invalid_rows
+
 
 def parse_roster_csv(file_bytes: bytes) -> tuple[list[tuple[str, str]], int]:
     decoded = file_bytes.decode("utf-8-sig", errors="ignore")
@@ -456,14 +781,86 @@ def parse_roster_csv(file_bytes: bytes) -> tuple[list[tuple[str, str]], int]:
                 continue
             entries.append((email, name))
 
-    dedup: dict[str, str] = {}
-    for email, name in entries:
-        if not re.match(r"^[^@]+@[^@]+\.elte\.hu$", email):
-            invalid_rows += 1
-            continue
-        dedup[email] = name
+    return _finalize_roster_entries(entries, invalid_rows)
 
-    return [(email, dedup[email]) for email in dedup], invalid_rows
+
+def parse_roster_xlsx(file_bytes: bytes) -> tuple[list[tuple[str, str]], int]:
+    invalid_rows = 0
+    entries: list[tuple[str, str]] = []
+
+    workbook = load_workbook(filename=io.BytesIO(file_bytes), read_only=True, data_only=True)
+    sheet = workbook.active
+
+    rows = sheet.iter_rows(values_only=True)
+    first_row = next(rows, None)
+    if first_row is None:
+        return [], 0
+
+    first_values = [str(item).strip() if item is not None else "" for item in first_row]
+    lowered = [item.lower() for item in first_values]
+
+    has_header = any("email" in item for item in lowered)
+
+    def row_to_email_name(row_values: tuple) -> tuple[str, str]:
+        email = (str(row_values[0]).strip().lower() if len(row_values) > 0 and row_values[0] is not None else "")
+        name = (str(row_values[1]).strip() if len(row_values) > 1 and row_values[1] is not None else "")
+        return email, name
+
+    if has_header:
+        email_index = next((idx for idx, item in enumerate(lowered) if item in {"email", "student_email"}), None)
+        if email_index is None:
+            return [], 1
+
+        name_index = next((idx for idx, item in enumerate(lowered) if item in {"name", "student_name"}), None)
+
+        for row in rows:
+            if row is None:
+                continue
+            if not any(cell is not None and str(cell).strip() for cell in row):
+                continue
+
+            email = ""
+            name = ""
+            if email_index < len(row) and row[email_index] is not None:
+                email = str(row[email_index]).strip().lower()
+            if name_index is not None and name_index < len(row) and row[name_index] is not None:
+                name = str(row[name_index]).strip()
+
+            if not email:
+                invalid_rows += 1
+                continue
+            entries.append((email, name))
+    else:
+        email, name = row_to_email_name(first_row)
+        if email:
+            entries.append((email, name))
+        elif any(item is not None and str(item).strip() for item in first_row):
+            invalid_rows += 1
+
+        for row in rows:
+            if row is None:
+                continue
+            if not any(cell is not None and str(cell).strip() for cell in row):
+                continue
+
+            email, name = row_to_email_name(row)
+            if not email:
+                invalid_rows += 1
+                continue
+            entries.append((email, name))
+
+    return _finalize_roster_entries(entries, invalid_rows)
+
+
+def parse_roster_file(file_bytes: bytes, filename: str | None) -> tuple[list[tuple[str, str]], int]:
+    extension = Path(filename or "").suffix.lower()
+
+    if extension == ".csv":
+        return parse_roster_csv(file_bytes)
+    if extension in {".xlsx", ".xlsm"}:
+        return parse_roster_xlsx(file_bytes)
+
+    raise HTTPException(status_code=400, detail="Unsupported roster file type. Use .csv or .xlsx")
 
 app = FastAPI(title="Smart Multi-Modal Attendance API")
 
@@ -529,11 +926,15 @@ def auth_session_sync(
         raise HTTPException(status_code=401, detail="Authenticated user email is missing")
 
     name = (current_user.get("name") or "").strip() or email.split("@")[0]
+    mental_access_name = get_mental_access_student_name(email)
 
     try:
         requested_role = UserRole(request.role.strip().upper())
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid role. Use STUDENT or TEACHER.")
+
+    if requested_role == UserRole.STUDENT and mental_access_name:
+        name = mental_access_name
 
     user = db.query(models.User).filter(models.User.email == email).first()
 
@@ -602,16 +1003,18 @@ def get_teacher_courses(semester: str | None = None, teacherEmail: str | None = 
         query = query.filter(models.Course.semester == semester)
 
     if teacherEmail:
-        assigned_ids = {
-            assignment.course_id
-            for assignment in db.query(models.TeacherCourseAssignment)
-            .filter(models.TeacherCourseAssignment.teacher_email == teacherEmail)
-            .all()
-        }
-        if assigned_ids:
-            query = query.filter(models.Course.id.in_(assigned_ids))
-        else:
-            return []
+        normalized_teacher_email = teacherEmail.strip().lower()
+        if not is_teacher_roster_access_account(normalized_teacher_email):
+            assigned_ids = {
+                assignment.course_id
+                for assignment in db.query(models.TeacherCourseAssignment)
+                .filter(models.TeacherCourseAssignment.teacher_email == normalized_teacher_email)
+                .all()
+            }
+            if assigned_ids:
+                query = query.filter(models.Course.id.in_(assigned_ids))
+            else:
+                return []
 
     courses = query.order_by(models.Course.name.asc()).all()
 
@@ -730,23 +1133,19 @@ def get_course_student_registry(
     teacher_email = (current_user.get("email") or "").strip().lower()
     ensure_teacher_can_manage_course(db, teacher_email, course_uuid)
 
-    rows = (
-        db.query(models.CourseStudentRegistry)
-        .filter(models.CourseStudentRegistry.course_id == course_uuid)
-        .order_by(models.CourseStudentRegistry.student_email.asc())
-        .all()
-    )
+    roster_map = get_effective_course_student_roster_map(db, course_uuid)
+    students = [
+        {
+            "email": email,
+            "name": name or None,
+        }
+        for email, name in sorted(roster_map.items())
+    ]
 
     return {
         "courseId": courseId,
-        "count": len(rows),
-        "students": [
-            {
-                "email": item.student_email,
-                "name": item.student_name,
-            }
-            for item in rows
-        ],
+        "count": len(students),
+        "students": students,
     }
 
 @app.post("/teacher/courses/{courseId}/students/upload", response_model=schemas.CourseRosterUploadSummary)
@@ -764,7 +1163,7 @@ async def upload_course_student_registry(
     if not file_bytes:
         raise HTTPException(status_code=400, detail="Uploaded roster file is empty")
 
-    parsed_entries, invalid_rows = parse_roster_csv(file_bytes)
+    parsed_entries, invalid_rows = parse_roster_file(file_bytes, rosterFile.filename)
     if not parsed_entries:
         raise HTTPException(status_code=400, detail="No valid student rows found in roster file")
 
@@ -791,7 +1190,7 @@ async def upload_course_student_registry(
         "courseId": courseId,
         "uploadedCount": len(parsed_entries),
         "invalidRows": invalid_rows,
-        "message": "Student registry uploaded and activated for this course.",
+        "message": "Student registry uploaded and activated for this course. Mental-access students remain validated by default.",
     }
 
 @app.get("/semesters")
@@ -972,7 +1371,7 @@ def submit_scan(
             detail="Student login must use ELTE Microsoft SSO email (*.elte.hu).",
         )
 
-    student_name = (current_user.get("name") or "").strip() or student_email.split("@")[0]
+    student_name = get_mental_access_student_name(student_email) or (current_user.get("name") or "").strip() or student_email.split("@")[0]
 
     student = db.query(models.User).filter(models.User.email == student_email).first()
     if not student:
@@ -1016,23 +1415,20 @@ def submit_scan(
     if not valid_session:
         raise HTTPException(status_code=401, detail="Invalid or expired QR token")
 
-    roster_entries = (
-        db.query(models.CourseStudentRegistry)
-        .filter(models.CourseStudentRegistry.course_id == valid_session.course_id)
-        .all()
-    )
+    uploaded_roster_map = get_uploaded_course_student_roster_map(db, valid_session.course_id)
 
-    if roster_entries:
-        roster_map = {item.student_email.lower(): item for item in roster_entries}
-        roster_match = roster_map.get(student_email)
-        if not roster_match:
+    if uploaded_roster_map:
+        if student_email not in uploaded_roster_map and not is_mental_access_student(student_email):
             raise HTTPException(
                 status_code=403,
                 detail="Student is not registered in the uploaded course roster.",
             )
 
-        if roster_match.student_name:
-            student.name = roster_match.student_name
+        uploaded_name = (uploaded_roster_map.get(student_email) or "").strip()
+        if uploaded_name:
+            student.name = uploaded_name
+    elif is_mental_access_student(student_email):
+        student.name = get_mental_access_student_name(student_email) or student.name
 
     existing = db.query(models.AttendanceLog).filter(
         models.AttendanceLog.session_id == valid_session.id,

@@ -167,7 +167,7 @@ export default function Login() {
           textAlign: "center",
         }}
       >
-        Students must use ELTE Microsoft SSO with an *.elte.hu email.
+        Students normally use ELTE Microsoft SSO with an *.elte.hu email. Mental-access test accounts can also sign in with email/password using the default password qwe123.
       </p>
 
       {/* Google Login */}

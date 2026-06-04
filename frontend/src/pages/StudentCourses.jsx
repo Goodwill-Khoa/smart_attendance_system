@@ -27,14 +27,14 @@ export default function StudentCourses({ user }) {
 
     try {
       const jwt = await getJWT();
-      const res = await fetch(`${BASE_URL}/courses?email=${encodeURIComponent(studentEmail)}`, {
+      const res = await fetch(`${BASE_URL}/courses/student`, {
         headers: { Authorization: `Bearer ${jwt}` },
       });
 
       if (!res.ok) throw new Error("Failed to fetch courses");
 
       const data = await res.json();
-      setCourses(data.courses || []);
+      setCourses(Array.isArray(data) ? data : []);
       setMessage("");
     } catch (err) {
       console.error(err);
@@ -49,7 +49,7 @@ export default function StudentCourses({ user }) {
       setMessage("");
       const jwt = await getJWT();
       const res = await fetch(
-        `${BASE_URL}/sessions?course=${encodeURIComponent(course.id)}&email=${encodeURIComponent(studentEmail)}`,
+        `${BASE_URL}/sessions/active?courseId=${encodeURIComponent(course.id)}`,
         { headers: { Authorization: `Bearer ${jwt}` } }
       );
 

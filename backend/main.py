@@ -162,6 +162,17 @@ def load_teacher_roster_template_accounts() -> list[tuple[str, str]]:
     except OSError:
         return FALLBACK_TEACHER_ROSTER_ACCOUNTS
 
+
+def get_teacher_roster_access_map() -> dict[str, str]:
+    return {
+        email.strip().lower(): full_name
+        for email, full_name in load_teacher_roster_template_accounts()
+    }
+
+
+def is_teacher_roster_access_account(email: str) -> bool:
+    return (email or "").strip().lower() in get_teacher_roster_access_map()
+
 def normalized_code(name: str, course_type: str, raw_code: str, used_codes: set[str]) -> str:
     base = (raw_code or "").strip().rstrip(".")
     if not base:
@@ -692,6 +703,9 @@ provision_teacher_roster_auth()
 provision_superuser_auth()
 
 def ensure_teacher_can_manage_course(db: Session, teacher_email: str, course_uuid: uuid.UUID):
+    if is_teacher_roster_access_account(teacher_email):
+        return
+
     assignment = (
         db.query(models.TeacherCourseAssignment)
         .filter(
@@ -896,16 +910,18 @@ def get_teacher_courses(semester: str | None = None, teacherEmail: str | None = 
         query = query.filter(models.Course.semester == semester)
 
     if teacherEmail:
-        assigned_ids = {
-            assignment.course_id
-            for assignment in db.query(models.TeacherCourseAssignment)
-            .filter(models.TeacherCourseAssignment.teacher_email == teacherEmail)
-            .all()
-        }
-        if assigned_ids:
-            query = query.filter(models.Course.id.in_(assigned_ids))
-        else:
-            return []
+        normalized_teacher_email = teacherEmail.strip().lower()
+        if not is_teacher_roster_access_account(normalized_teacher_email):
+            assigned_ids = {
+                assignment.course_id
+                for assignment in db.query(models.TeacherCourseAssignment)
+                .filter(models.TeacherCourseAssignment.teacher_email == normalized_teacher_email)
+                .all()
+            }
+            if assigned_ids:
+                query = query.filter(models.Course.id.in_(assigned_ids))
+            else:
+                return []
 
     courses = query.order_by(models.Course.name.asc()).all()
 

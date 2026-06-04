@@ -20,6 +20,7 @@ import requests
 import secrets
 import string
 from pathlib import Path
+from openpyxl import load_workbook
 
 models.Base.metadata.create_all(bind=engine)
 optional_security = HTTPBearer(auto_error=False)
@@ -727,6 +728,27 @@ def ensure_teacher_can_manage_course(db: Session, teacher_email: str, course_uui
 
     raise HTTPException(status_code=403, detail="You are not assigned to manage this course")
 
+
+def _is_valid_roster_email(email: str) -> bool:
+    # Testing-mode validation focuses on email presence/shape rather than specific domain allowlists.
+    return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email))
+
+
+def _finalize_roster_entries(entries: list[tuple[str, str]], invalid_rows: int) -> tuple[list[tuple[str, str]], int]:
+    dedup: dict[str, str] = {}
+    for email, name in entries:
+        normalized_email = (email or "").strip().lower()
+        normalized_name = (name or "").strip()
+
+        if not normalized_email or not _is_valid_roster_email(normalized_email):
+            invalid_rows += 1
+            continue
+
+        dedup[normalized_email] = normalized_name
+
+    return [(email, dedup[email]) for email in dedup], invalid_rows
+
+
 def parse_roster_csv(file_bytes: bytes) -> tuple[list[tuple[str, str]], int]:
     decoded = file_bytes.decode("utf-8-sig", errors="ignore")
     stream = io.StringIO(decoded)
@@ -759,14 +781,86 @@ def parse_roster_csv(file_bytes: bytes) -> tuple[list[tuple[str, str]], int]:
                 continue
             entries.append((email, name))
 
-    dedup: dict[str, str] = {}
-    for email, name in entries:
-        if not re.match(r"^[^@]+@[^@]+\.elte\.hu$", email):
-            invalid_rows += 1
-            continue
-        dedup[email] = name
+    return _finalize_roster_entries(entries, invalid_rows)
 
-    return [(email, dedup[email]) for email in dedup], invalid_rows
+
+def parse_roster_xlsx(file_bytes: bytes) -> tuple[list[tuple[str, str]], int]:
+    invalid_rows = 0
+    entries: list[tuple[str, str]] = []
+
+    workbook = load_workbook(filename=io.BytesIO(file_bytes), read_only=True, data_only=True)
+    sheet = workbook.active
+
+    rows = sheet.iter_rows(values_only=True)
+    first_row = next(rows, None)
+    if first_row is None:
+        return [], 0
+
+    first_values = [str(item).strip() if item is not None else "" for item in first_row]
+    lowered = [item.lower() for item in first_values]
+
+    has_header = any("email" in item for item in lowered)
+
+    def row_to_email_name(row_values: tuple) -> tuple[str, str]:
+        email = (str(row_values[0]).strip().lower() if len(row_values) > 0 and row_values[0] is not None else "")
+        name = (str(row_values[1]).strip() if len(row_values) > 1 and row_values[1] is not None else "")
+        return email, name
+
+    if has_header:
+        email_index = next((idx for idx, item in enumerate(lowered) if item in {"email", "student_email"}), None)
+        if email_index is None:
+            return [], 1
+
+        name_index = next((idx for idx, item in enumerate(lowered) if item in {"name", "student_name"}), None)
+
+        for row in rows:
+            if row is None:
+                continue
+            if not any(cell is not None and str(cell).strip() for cell in row):
+                continue
+
+            email = ""
+            name = ""
+            if email_index < len(row) and row[email_index] is not None:
+                email = str(row[email_index]).strip().lower()
+            if name_index is not None and name_index < len(row) and row[name_index] is not None:
+                name = str(row[name_index]).strip()
+
+            if not email:
+                invalid_rows += 1
+                continue
+            entries.append((email, name))
+    else:
+        email, name = row_to_email_name(first_row)
+        if email:
+            entries.append((email, name))
+        elif any(item is not None and str(item).strip() for item in first_row):
+            invalid_rows += 1
+
+        for row in rows:
+            if row is None:
+                continue
+            if not any(cell is not None and str(cell).strip() for cell in row):
+                continue
+
+            email, name = row_to_email_name(row)
+            if not email:
+                invalid_rows += 1
+                continue
+            entries.append((email, name))
+
+    return _finalize_roster_entries(entries, invalid_rows)
+
+
+def parse_roster_file(file_bytes: bytes, filename: str | None) -> tuple[list[tuple[str, str]], int]:
+    extension = Path(filename or "").suffix.lower()
+
+    if extension == ".csv":
+        return parse_roster_csv(file_bytes)
+    if extension in {".xlsx", ".xlsm"}:
+        return parse_roster_xlsx(file_bytes)
+
+    raise HTTPException(status_code=400, detail="Unsupported roster file type. Use .csv or .xlsx")
 
 app = FastAPI(title="Smart Multi-Modal Attendance API")
 
@@ -1069,7 +1163,7 @@ async def upload_course_student_registry(
     if not file_bytes:
         raise HTTPException(status_code=400, detail="Uploaded roster file is empty")
 
-    parsed_entries, invalid_rows = parse_roster_csv(file_bytes)
+    parsed_entries, invalid_rows = parse_roster_file(file_bytes, rosterFile.filename)
     if not parsed_entries:
         raise HTTPException(status_code=400, detail="No valid student rows found in roster file")
 

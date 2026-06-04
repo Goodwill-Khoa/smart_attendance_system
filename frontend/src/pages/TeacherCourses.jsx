@@ -544,13 +544,13 @@ export default function TeacherCourses({ user }) {
 
               <div style={{ marginTop: "14px", borderTop: "1px solid #e5e7eb", paddingTop: "12px" }}>
                 <div style={{ fontSize: "clamp(12px, 1.8vw, 13px)", color: "#374151", marginBottom: "10px", fontWeight: 600 }}>
-                  📋 Upload Registered Students (CSV)
+                  📋 Upload Registered Students (CSV or XLSX)
                 </div>
                 <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center", marginBottom: "10px" }}>
                   <input
                     key={selectedCourseId}
                     type="file"
-                    accept=".csv,text/csv"
+                    accept=".csv,.xlsx,.xlsm,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     onChange={(e) => setRosterFile(e.target.files?.[0] || null)}
                     style={{ maxWidth: "100%", fontSize: "clamp(12px, 1.8vw, 14px)" }}
                   />

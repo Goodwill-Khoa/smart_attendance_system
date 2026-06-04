@@ -672,13 +672,12 @@ def provision_teacher_roster_auth():
         return
 
     for email, full_name in load_teacher_roster_template_accounts():
-        ensure_supabase_auth_user(
+        # Upsert (not just ensure) so stale existing auth users also get the expected default password.
+        upsert_supabase_lecturer(
             email=email,
+            full_name=full_name,
+            title="Lecturer",
             password=DEFAULT_LECTURER_PASSWORD,
-            user_metadata={
-                "name": full_name,
-                "title": "Lecturer",
-            },
         )
 
 

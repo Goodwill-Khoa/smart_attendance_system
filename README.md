@@ -1,3 +1,4 @@
+
 # Smart Multi-Modal Attendance
 
 A lightweight, serverless Progressive Web App (PWA) designed to eliminate the 10-15 minute "Time-Leak" of manual classroom attendance, equipped with anti-cheating mechanisms like 10-second dynamic QR hashes and device tracking.
@@ -15,6 +16,26 @@ This project follows a TOGAF-aligned Microservices Architecture:
 * **Backend (Application Services):** Python FastAPI 
 * **Database (Data Architecture):** PostgreSQL (Hosted on Supabase) with SQLAlchemy ORM
 * **External Services:** Supabase OAuth (ELTE Google/Microsoft Single Sign-On)
+
+## 🌐 Live Deployment
+
+Current published endpoints:
+
+- **Production Frontend:** https://smartattendancesystem2.vercel.app
+- **Preview Frontend (dev branch):** https://smartattendancesystem2dev.vercel.app
+- **Production Backend API:** https://smart-attendance-system-z26x.onrender.com
+
+Quick links:
+- Production home: https://smartattendancesystem2.vercel.app/home
+- Production student login flow: https://smartattendancesystem2.vercel.app/login
+- Production teacher login: https://smartattendancesystem2.vercel.app/teacher-login
+- Production admin login: https://smartattendancesystem2.vercel.app/admin-login
+
+<div style="page-break-after: always"></div>
+
+Notes:
+- Preview deployments may be protected by Vercel access control. If OAuth callback testing is required on preview, ensure preview protection is disabled or configured to allow callback completion.
+- Student social sign-in is validated for ELTE domains (`@elte.hu` and subdomains such as `@inf.elte.hu`).
 
 ## 📂 Repository Structure
 This is a monorepo. The codebase is split into two primary domains:
@@ -47,6 +68,8 @@ VITE_OAUTH_REDIRECT_URL=http://127.0.0.1:5173/auth/callback
 ```
 
 If the files do not exist yet, copy from `backend/.env.example` and `frontend/.env.example`.
+
+<div style="page-break-after: always"></div>
 
 2. Start the backend.
 ```powershell
@@ -81,6 +104,8 @@ Notes:
 - Restart the backend after backend model changes so SQLite schema upgrades run.
 - `SUPABASE_SERVICE_ROLE_KEY` is only required for admin actions that create lecturers or reset lecturer passwords in Supabase.
 
+<div style="page-break-after: always"></div>
+
 ### Deploy Frontend With Vercel
 This repository contains a Vercel config only for the React frontend in `frontend/vercel.json`.
 
@@ -108,10 +133,21 @@ Recommended Vercel project settings:
 - `VITE_ENABLE_AZURE_SSO=true` if Azure SSO should be visible
 - `VITE_OAUTH_REDIRECT_URL=https://your-frontend-domain/auth/callback`
 
+Use environment-scoped values for redirect URLs:
+- **Production environment:** `VITE_OAUTH_REDIRECT_URL=https://smartattendancesystem2.vercel.app/auth/callback`
+- **Preview environment:** `VITE_OAUTH_REDIRECT_URL=https://smartattendancesystem2dev.vercel.app/auth/callback`
+
 For your live deployment, use the actual frontend domain here:
 - `https://smartattendancesystem2.vercel.app/auth/callback`
 
+<div style="page-break-after: always"></div>
+
 In Supabase Auth settings, add the same redirect URL to the allowed callback URLs for both Google and Microsoft providers. Keep the local callback URL as well if you still run the app from `localhost`.
+
+Recommended Supabase redirect allow-list:
+- `https://smartattendancesystem2.vercel.app/auth/callback`
+- `https://smartattendancesystem2dev.vercel.app/auth/callback`
+- `http://127.0.0.1:5173/auth/callback`
 
 For Microsoft SSO specifically:
 - In Microsoft Entra app registration, use the Supabase callback as the Web redirect URI: `https://<your-supabase-project-ref>.supabase.co/auth/v1/callback`
@@ -136,6 +172,8 @@ Example backend start command:
 ```powershell
 uvicorn main:app --host 0.0.0.0 --port 8000
 ```
+
+<div style="page-break-after: always"></div>
 
 ### Quick Verification After Launch
 - Teacher can log in at `/teacher-login` and open `/teacher-courses`
@@ -178,6 +216,8 @@ Vercel deploy prerequisites:
 - Configure `VITE_API_BASE_URL`, `VITE_SUPABASE_URL`, and `VITE_SUPABASE_ANON_KEY` in the Vercel project.
 - Deploy the backend separately before using `vercel --prod`.
 
+<div style="page-break-after: always"></div>
+
 ### End-to-End Test Steps
 
 Lecturer steps:
@@ -214,12 +254,7 @@ Environment files included:
 - `backend/.env` and `backend/.env.example`
 - `frontend/.env` and `frontend/.env.example`
 
-## Deliverables Document (Outside Repo)
-Submission-ready documentation is stored one folder above this repository:
-
-- `../project_deliverables/Deliverables_to_Advanced_Software_Technology_course_at_ELTE.md`
-
-This keeps reporting artifacts separate from source-code commits.
+<div style="page-break-after: always"></div>
 
 ## Go Live Plan (Separate from Demo Push)
 
@@ -248,15 +283,3 @@ This keeps reporting artifacts separate from source-code commits.
 6. Tag release and deploy to production.
 
 This production sequence should be executed independently from the demo push.
-
-### Developer Shortcuts
-Frontend:
-1. `cd frontend`
-2. `cmd /c npm install`
-3. `cmd /c npm run dev`
-
-Backend:
-1. `cd backend`
-2. `python -m venv ..\.venv`
-3. `..\.venv\Scripts\python.exe -m pip install -r requirements.txt`
-4. `..\.venv\Scripts\python.exe -m uvicorn main:app --reload`

@@ -16,6 +16,24 @@ This project follows a TOGAF-aligned Microservices Architecture:
 * **Database (Data Architecture):** PostgreSQL (Hosted on Supabase) with SQLAlchemy ORM
 * **External Services:** Supabase OAuth (ELTE Google/Microsoft Single Sign-On)
 
+## 🌐 Live Deployment
+
+Current published endpoints:
+
+- **Production Frontend:** https://smartattendancesystem2.vercel.app
+- **Preview Frontend (dev branch):** https://smartattendancesystem2dev.vercel.app
+- **Production Backend API:** https://smart-attendance-system-z26x.onrender.com
+
+Quick links:
+- Production home: https://smartattendancesystem2.vercel.app/home
+- Production student login flow: https://smartattendancesystem2.vercel.app/login
+- Production teacher login: https://smartattendancesystem2.vercel.app/teacher-login
+- Production admin login: https://smartattendancesystem2.vercel.app/admin-login
+
+Notes:
+- Preview deployments may be protected by Vercel access control. If OAuth callback testing is required on preview, ensure preview protection is disabled or configured to allow callback completion.
+- Student social sign-in is validated for ELTE domains (`@elte.hu` and subdomains such as `@inf.elte.hu`).
+
 ## 📂 Repository Structure
 This is a monorepo. The codebase is split into two primary domains:
 
@@ -108,10 +126,19 @@ Recommended Vercel project settings:
 - `VITE_ENABLE_AZURE_SSO=true` if Azure SSO should be visible
 - `VITE_OAUTH_REDIRECT_URL=https://your-frontend-domain/auth/callback`
 
+Use environment-scoped values for redirect URLs:
+- **Production environment:** `VITE_OAUTH_REDIRECT_URL=https://smartattendancesystem2.vercel.app/auth/callback`
+- **Preview environment:** `VITE_OAUTH_REDIRECT_URL=https://smartattendancesystem2dev.vercel.app/auth/callback`
+
 For your live deployment, use the actual frontend domain here:
 - `https://smartattendancesystem2.vercel.app/auth/callback`
 
 In Supabase Auth settings, add the same redirect URL to the allowed callback URLs for both Google and Microsoft providers. Keep the local callback URL as well if you still run the app from `localhost`.
+
+Recommended Supabase redirect allow-list:
+- `https://smartattendancesystem2.vercel.app/auth/callback`
+- `https://smartattendancesystem2dev.vercel.app/auth/callback`
+- `http://127.0.0.1:5173/auth/callback`
 
 For Microsoft SSO specifically:
 - In Microsoft Entra app registration, use the Supabase callback as the Web redirect URI: `https://<your-supabase-project-ref>.supabase.co/auth/v1/callback`

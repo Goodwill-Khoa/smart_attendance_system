@@ -1,14 +1,15 @@
 
-# Smart Multi-Modal Attendance
+# Smart Multi-Modal Attendance v2
 
 A lightweight, serverless Progressive Web App (PWA) designed to eliminate the 10-15 minute "Time-Leak" of manual classroom attendance, equipped with anti-cheating mechanisms like 10-second dynamic QR hashes and device tracking.
+making use of a RF
 
 ## 👥 The Team
 * **Khoa Goodwill** - System Architect & Project Manager
-* **Zsombók Kevin** - Backend Developer
-* **Li Xuetao** - Frontend Engineer
-* **Curos Maxim** - DevOps & QA Engineer
-* **Naat Yacine** - AI/Data Specialist
+* **Gonzalez Salvador Omar Francisco** - Backend Developer & Scrum Master
+* **Zhao Boning** - Frontend Engineer
+* **Akylbek Kyzy Asel** - DevOps & QA Engineer
+* **Gultekin Elif** - AI/Data Specialist & Quality Assurance 
 
 ## 🏗️ Architecture Stack
 This project follows a TOGAF-aligned Microservices Architecture:

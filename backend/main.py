@@ -3,8 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 from sqlalchemy import inspect, text
+from sqlalchemy.exc import IntegrityError
 import models
 import schemas
+import rfid_scheduling
+import database as database_module
+import semester_databases
 from authorization import auth, get_current_user
 from database import engine, get_db
 from models import UserRole
@@ -12,6 +16,7 @@ import uuid
 import time
 from datetime import datetime, timezone, timedelta
 import hashlib
+import hmac
 import io, csv
 from fastapi.responses import Response
 import os
@@ -20,6 +25,7 @@ import requests
 import secrets
 import string
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from openpyxl import load_workbook
 
 models.Base.metadata.create_all(bind=engine)
@@ -42,6 +48,9 @@ def ensure_schema_upgrades():
     inspector = inspect(engine)
     course_columns = {column["name"] for column in inspector.get_columns("courses")}
     user_columns = {column["name"] for column in inspector.get_columns("users")}
+    attendance_columns = {column["name"] for column in inspector.get_columns("attendance_logs")}
+    session_columns = {column["name"] for column in inspector.get_columns("sessions")}
+    reader_columns = {column["name"] for column in inspector.get_columns("rfid_readers")}
     if "semester" not in course_columns:
         with engine.begin() as connection:
             connection.execute(text("ALTER TABLE courses ADD COLUMN semester VARCHAR"))
@@ -54,6 +63,34 @@ def ensure_schema_upgrades():
         with engine.begin() as connection:
             connection.execute(text("ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT 0"))
             connection.execute(text("UPDATE users SET is_admin = 0 WHERE is_admin IS NULL"))
+    attendance_upgrades = []
+    if "checked_out_at" not in attendance_columns:
+        attendance_upgrades.append("ALTER TABLE attendance_logs ADD COLUMN checked_out_at TIMESTAMP")
+    if "source" not in attendance_columns:
+        attendance_upgrades.append("ALTER TABLE attendance_logs ADD COLUMN source VARCHAR NOT NULL DEFAULT 'QR'")
+    if attendance_upgrades:
+        with engine.begin() as connection:
+            for statement in attendance_upgrades:
+                connection.execute(text(statement))
+    session_upgrades = []
+    if "schedule_id" not in session_columns:
+        session_upgrades.append("ALTER TABLE sessions ADD COLUMN schedule_id UUID")
+    if "scheduled_start" not in session_columns:
+        session_upgrades.append("ALTER TABLE sessions ADD COLUMN scheduled_start TIMESTAMP")
+    if "scheduled_end" not in session_columns:
+        session_upgrades.append("ALTER TABLE sessions ADD COLUMN scheduled_end TIMESTAMP")
+    if session_upgrades:
+        with engine.begin() as connection:
+            for statement in session_upgrades:
+                connection.execute(text(statement))
+    with engine.begin() as connection:
+        connection.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_sessions_schedule_occurrence "
+            "ON sessions (schedule_id, scheduled_start)"
+        ))
+    if "room_name" not in reader_columns:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE rfid_readers ADD COLUMN room_name VARCHAR"))
 
 DEFAULT_COURSES = [
     ("Advanced Software Technology", "L", ""),
@@ -194,6 +231,9 @@ def normalized_code(name: str, course_type: str, raw_code: str, used_codes: set[
 def seed_default_courses_if_empty():
     semester = current_semester_label()
     with Session(engine) as db:
+        if db.query(models.Course.id).first():
+            return
+
         used_codes = {course.code for course in db.query(models.Course).all()}
         existing_pairs = {
             (course.name, course.course_type, course.semester)
@@ -456,11 +496,129 @@ SUPERUSER_KEY = os.getenv("SUPERUSER_KEY", "admin123")
 TOKEN_WINDOW_SECONDS = 10
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+RFID_SIMULATOR_ENABLED = os.getenv("RFID_SIMULATOR_ENABLED", "false").strip().lower() == "true"
+ATTENDANCE_TIMEZONE = os.getenv("ATTENDANCE_TIMEZONE", "Europe/Budapest")
 
 def to_utc_aware(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc)
+
+def normalize_card_id(card_id: str) -> str:
+    normalized = card_id.strip().upper()
+    if not normalized or len(normalized) > 128 or not re.fullmatch(r"[A-Z0-9:_-]+", normalized):
+        raise HTTPException(status_code=422, detail="Invalid RFID card identifier")
+    return normalized
+
+def hash_card_id(card_id: str) -> str:
+    key = os.getenv("RFID_CREDENTIAL_HMAC_KEY", "")
+    if len(key) < 32:
+        raise HTTPException(
+            status_code=503,
+            detail="RFID_CREDENTIAL_HMAC_KEY must be configured with at least 32 characters",
+        )
+    return hmac.new(key.encode("utf-8"), normalize_card_id(card_id).encode("utf-8"), hashlib.sha256).hexdigest()
+
+def get_simulator_now(db: Session) -> datetime:
+    clock = db.query(models.RfidSimulatorClock).filter(models.RfidSimulatorClock.id == 1).first()
+    if not clock:
+        raise HTTPException(status_code=409, detail="Prepare the virtual schedule demo first")
+    return to_utc_aware(clock.current_time)
+
+def is_student_eligible_for_course(db: Session, course_id: uuid.UUID, email: str) -> bool:
+    roster = get_uploaded_course_student_roster_map(db, course_id)
+    return not roster or email.strip().lower() in roster or is_mental_access_student(email)
+
+def require_rfid_simulator():
+    if not RFID_SIMULATOR_ENABLED:
+        raise HTTPException(status_code=404, detail="RFID simulator is disabled")
+
+def record_rfid_event(
+    db: Session,
+    session_id: uuid.UUID,
+    credential: models.StudentCardCredential,
+    event_type: str,
+    source: str,
+    reader_id: uuid.UUID | None,
+) -> dict:
+    normalized_event_type = event_type.strip().upper()
+    if normalized_event_type not in {"ENTRY", "EXIT"}:
+        raise HTTPException(status_code=422, detail="event_type must be ENTRY or EXIT")
+
+    session = db.query(models.Session).filter(models.Session.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if not session.active:
+        raise HTTPException(status_code=409, detail="Session is not active")
+    if session.expires_at and to_utc_aware(session.expires_at) < datetime.now(timezone.utc):
+        raise HTTPException(status_code=409, detail="Session has expired")
+
+    student = db.query(models.User).filter(models.User.id == credential.user_id).first()
+    if not student or student.role != models.UserRole.STUDENT:
+        raise HTTPException(status_code=403, detail="RFID credential is not assigned to an active student")
+
+    roster = get_uploaded_course_student_roster_map(db, session.course_id)
+    student_email = (student.email or "").strip().lower()
+    if roster and student_email not in roster and not is_mental_access_student(student_email):
+        raise HTTPException(status_code=403, detail="Student is not registered in the course roster")
+
+    attendance = (
+        db.query(models.AttendanceLog)
+        .filter(
+            models.AttendanceLog.session_id == session.id,
+            models.AttendanceLog.user_id == student.id,
+        )
+        .first()
+    )
+    if normalized_event_type == "ENTRY":
+        if attendance:
+            raise HTTPException(status_code=409, detail="Student has already checked in for this session")
+    else:
+        if not attendance:
+            raise HTTPException(status_code=409, detail="Student must check in before checking out")
+        if attendance.checked_out_at:
+            raise HTTPException(status_code=409, detail="Student has already checked out for this session")
+
+    occurred_at = datetime.now(timezone.utc)
+    event = models.AttendanceEvent(
+        session_id=session.id,
+        user_id=student.id,
+        credential_id=credential.id,
+        reader_id=reader_id,
+        event_type=normalized_event_type,
+        source=source,
+        occurred_at=occurred_at,
+    )
+    db.add(event)
+
+    if normalized_event_type == "ENTRY":
+        attendance = models.AttendanceLog(
+            session_id=session.id,
+            user_id=student.id,
+            device_id=f"{source.lower()}:{reader_id or 'virtual'}",
+            ip_address=None,
+            qr_timestamp=occurred_at,
+            timestamp=occurred_at,
+            status="PRESENT",
+            source=source,
+        )
+        db.add(attendance)
+    else:
+        attendance.checked_out_at = occurred_at
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="This attendance event has already been recorded")
+
+    return {
+        "success": True,
+        "message": f"{normalized_event_type.title()} recorded for {student.name}.",
+        "event_type": normalized_event_type,
+        "student_name": student.name,
+        "occurred_at": occurred_at,
+    }
 
 def verify_admin(x_admin_key: str = Header(default="")):
     if x_admin_key != SUPERUSER_KEY:
@@ -1020,7 +1178,10 @@ def get_teacher_courses(semester: str | None = None, teacherEmail: str | None = 
 
     active_sessions = {
         str(session.course_id): str(session.id)
-        for session in db.query(models.Session).filter(models.Session.active == True).all()
+        for session in db.query(models.Session).filter(
+            models.Session.active == True,
+            models.Session.schedule_id.is_(None),
+        ).all()
     }
 
     return [
@@ -1204,18 +1365,49 @@ def get_semesters(db: Session = Depends(get_db)):
 
     return {"semesters": semesters}
 
+@app.get("/admin/semester-database")
+def admin_semester_database(_: dict = Depends(verify_admin_access), db: Session = Depends(get_db)):
+    return semester_databases.get_status(db)
+
+@app.post("/admin/semester-database/activate")
+def admin_activate_semester_database(
+    req: schemas.SemesterDatabaseActivateRequest,
+    _: dict = Depends(verify_admin_access),
+    db: Session = Depends(get_db),
+):
+    if not database_module.semester_database_supported():
+        raise HTTPException(
+            status_code=409,
+            detail="Semester database switching is available only for local file-based SQLite. Production PostgreSQL is unchanged.",
+        )
+
+    try:
+        result = semester_databases.create_and_activate(db, req.semester, req.course_ids)
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+    global engine
+    engine = database_module.engine
+    return result
+
 @app.post("/courses")
 def create_course(course_req: schemas.CourseCreate, db: Session = Depends(get_db)):
     existing = db.query(models.Course).filter(models.Course.code == course_req.code).first()
     if existing:
         raise HTTPException(status_code=400, detail="Course code already exists")
 
+    course_name = course_req.name.strip()
+    course_type = course_req.course_type.strip() or "L"
+    semester = course_req.semester.strip() or current_semester_label()
+    if semester_databases.course_identity_exists(db, course_name, course_type, semester):
+        raise HTTPException(status_code=400, detail="Course already exists for this semester")
+
     new_course = models.Course(
         id=uuid.uuid4(),
-        name=course_req.name.strip(),
-        course_type=course_req.course_type.strip() or "L",
+        name=course_name,
+        course_type=course_type,
         code=course_req.code.strip(),
-        semester=course_req.semester.strip() or current_semester_label(),
+        semester=semester,
         lecturer_id=None,
     )
 
@@ -1260,7 +1452,10 @@ def get_student_courses(db: Session = Depends(get_db)):
 
     active_course_ids = {
         session.course_id
-        for session in db.query(models.Session).filter(models.Session.active == True).all()
+        for session in db.query(models.Session).filter(
+            models.Session.active == True,
+            models.Session.schedule_id.is_(None),
+        ).all()
     }
 
     return [
@@ -1285,7 +1480,8 @@ def get_active_session(courseId: str, db: Session = Depends(get_db)):
         db.query(models.Session)
         .filter(
             models.Session.course_id == course_uuid,
-            models.Session.active == True
+            models.Session.active == True,
+            models.Session.schedule_id.is_(None),
         )
         .order_by(models.Session.created_at.desc())
         .first()
@@ -1309,6 +1505,8 @@ def end_session(sessionId: str, db: Session = Depends(get_db)):
 
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+    if session.schedule_id:
+        raise HTTPException(status_code=409, detail="Scheduled RFID sessions end automatically")
 
     if not session.active:
         return {
@@ -1336,6 +1534,9 @@ def get_qr_token(sessionId: str, db: Session = Depends(get_db)):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
+    if session.schedule_id:
+        raise HTTPException(status_code=409, detail="Scheduled classes use the room RFID reader")
+
     if not session.active:
         emergency_message = get_latest_emergency_message(db)
         if emergency_message:
@@ -1354,6 +1555,726 @@ def get_qr_token(sessionId: str, db: Session = Depends(get_db)):
         "token": token,
         "expiresAt": datetime.now(timezone.utc).isoformat()
     }
+
+@app.post("/admin/rfid/readers")
+def create_rfid_reader(
+    reader_req: schemas.RfidReaderCreate,
+    _: dict = Depends(verify_admin_access),
+    db: Session = Depends(get_db),
+):
+    name = reader_req.name.strip()
+    room_name = reader_req.room_name.strip()
+    if not name or not room_name:
+        raise HTTPException(status_code=422, detail="Reader name and room are required")
+
+    api_key = secrets.token_urlsafe(32)
+    reader = models.RfidReader(
+        name=name,
+        room_name=room_name,
+        key_hash=hashlib.sha256(api_key.encode("utf-8")).hexdigest(),
+        active=True,
+    )
+    db.add(reader)
+    db.commit()
+    db.refresh(reader)
+    return {"id": str(reader.id), "name": reader.name, "room_name": reader.room_name, "api_key": api_key}
+
+@app.get("/admin/rfid/readers")
+def list_rfid_readers(
+    _: dict = Depends(verify_admin_access),
+    db: Session = Depends(get_db),
+):
+    readers = db.query(models.RfidReader).filter(models.RfidReader.name != "Virtual Classroom Reader").all()
+    return [
+        {
+            "id": str(reader.id),
+            "name": reader.name,
+            "room_name": reader.room_name,
+            "active": reader.active,
+            "created_at": reader.created_at,
+        }
+        for reader in readers
+    ]
+
+@app.get("/rfid/rooms")
+def list_rfid_rooms(db: Session = Depends(get_db)):
+    rows = db.query(models.RfidReader.room_name).filter(
+        models.RfidReader.active == True,
+        models.RfidReader.room_name.isnot(None),
+    ).distinct().order_by(models.RfidReader.room_name.asc()).all()
+    return [{"room_name": row[0]} for row in rows if row[0]]
+
+@app.post("/admin/rfid/credentials")
+def create_rfid_credential(
+    credential_req: schemas.RfidCredentialCreate,
+    _: dict = Depends(verify_admin_access),
+    db: Session = Depends(get_db),
+):
+    email = credential_req.student_email.strip().lower()
+    if not re.match(r"^[^@]+@[^@]+\.elte\.hu$", email):
+        raise HTTPException(status_code=422, detail="Student email must be an ELTE address")
+
+    credential_hash = hash_card_id(credential_req.card_id)
+    if db.query(models.StudentCardCredential).filter(
+        models.StudentCardCredential.credential_hash == credential_hash
+    ).first():
+        raise HTTPException(status_code=409, detail="This card is already registered")
+
+    student = db.query(models.User).filter(models.User.email == email).first()
+    if student and student.role != models.UserRole.STUDENT:
+        raise HTTPException(status_code=409, detail="Email belongs to a non-student account")
+    if not student:
+        student = models.User(
+            email=email,
+            name=(credential_req.student_name or email.split("@")[0]).strip(),
+            role=models.UserRole.STUDENT,
+        )
+        db.add(student)
+        db.flush()
+
+    active_card = db.query(models.StudentCardCredential).filter(
+        models.StudentCardCredential.user_id == student.id,
+        models.StudentCardCredential.active == True,
+    ).first()
+    if active_card:
+        raise HTTPException(status_code=409, detail="Student already has an active card; revoke it before enrolling a replacement")
+
+    credential = models.StudentCardCredential(
+        user_id=student.id,
+        credential_hash=credential_hash,
+        active=True,
+    )
+    db.add(credential)
+    db.commit()
+    db.refresh(credential)
+    return {
+        "id": str(credential.id),
+        "student_email": student.email,
+        "active": credential.active,
+        "created_at": credential.created_at,
+    }
+
+@app.get("/admin/rfid/credentials")
+def list_rfid_credentials(
+    _: dict = Depends(verify_admin_access),
+    db: Session = Depends(get_db),
+):
+    records = (
+        db.query(models.StudentCardCredential, models.User)
+        .join(models.User, models.StudentCardCredential.user_id == models.User.id)
+        .order_by(models.StudentCardCredential.created_at.desc())
+        .all()
+    )
+    return [
+        {
+            "id": str(credential.id),
+            "student_email": student.email,
+            "student_name": student.name,
+            "active": credential.active,
+            "created_at": credential.created_at,
+            "revoked_at": credential.revoked_at,
+        }
+        for credential, student in records
+    ]
+
+@app.post("/admin/rfid/credentials/{credential_id}/revoke")
+def revoke_rfid_credential(
+    credential_id: str,
+    _: dict = Depends(verify_admin_access),
+    db: Session = Depends(get_db),
+):
+    credential_uuid = parse_uuid_or_400(credential_id, "credential_id")
+    credential = db.query(models.StudentCardCredential).filter(
+        models.StudentCardCredential.id == credential_uuid
+    ).first()
+    if not credential:
+        raise HTTPException(status_code=404, detail="RFID credential not found")
+    if credential.active:
+        credential.active = False
+        credential.revoked_at = datetime.now(timezone.utc)
+        db.commit()
+    return {"success": True, "active": credential.active}
+
+@app.get("/rfid/teacher/schedules")
+def list_teacher_rfid_schedules(
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    teacher_email = (current_user.get("email") or "").strip().lower()
+    if not teacher_email:
+        raise HTTPException(status_code=401, detail="Authenticated teacher has no email")
+
+    if is_teacher_roster_access_account(teacher_email):
+        schedules = db.query(models.ClassSchedule).filter(
+            models.ClassSchedule.active == True
+        ).order_by(models.ClassSchedule.weekday, models.ClassSchedule.start_time).all()
+    else:
+        assigned_course_ids = {
+            assignment.course_id
+            for assignment in db.query(models.TeacherCourseAssignment)
+            .filter(models.TeacherCourseAssignment.teacher_email == teacher_email)
+            .all()
+        }
+        schedules = db.query(models.ClassSchedule).filter(
+            models.ClassSchedule.course_id.in_(assigned_course_ids),
+            models.ClassSchedule.active == True,
+        ).order_by(models.ClassSchedule.weekday, models.ClassSchedule.start_time).all() if assigned_course_ids else []
+
+    result = []
+    for schedule in schedules:
+        course = db.query(models.Course).filter(models.Course.id == schedule.course_id).first()
+        result.append({
+            "id": str(schedule.id),
+            "course_id": str(schedule.course_id),
+            "course_name": course.name if course else "",
+            "course_code": course.code if course else "",
+            "room_name": schedule.room_name,
+            "weekday": schedule.weekday,
+            "start_time": schedule.start_time.isoformat(timespec="minutes"),
+            "end_time": schedule.end_time.isoformat(timespec="minutes"),
+            "timezone": schedule.timezone,
+            "schedule_source": schedule.schedule_source,
+        })
+    return result
+
+@app.post("/rfid/teacher/schedules")
+def create_teacher_rfid_schedule(
+    schedule_req: schemas.ClassScheduleCreate,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    teacher_email = (current_user.get("email") or "").strip().lower()
+    if not teacher_email:
+        raise HTTPException(status_code=401, detail="Authenticated teacher has no email")
+    if schedule_req.weekday < 0 or schedule_req.weekday > 6:
+        raise HTTPException(status_code=422, detail="weekday must be between 0 (Monday) and 6 (Sunday)")
+    if schedule_req.end_time <= schedule_req.start_time:
+        raise HTTPException(status_code=422, detail="Class end time must be later than start time")
+    duration_minutes = (
+        schedule_req.end_time.hour * 60 + schedule_req.end_time.minute
+        - schedule_req.start_time.hour * 60 - schedule_req.start_time.minute
+    )
+    if duration_minutes <= 20:
+        raise HTTPException(status_code=422, detail="Scheduled classes must be longer than 20 minutes")
+    try:
+        ZoneInfo(schedule_req.timezone)
+    except ZoneInfoNotFoundError:
+        raise HTTPException(status_code=422, detail="Unknown IANA time zone")
+
+    room_name = schedule_req.room_name.strip()
+    room_reader = db.query(models.RfidReader).filter(
+        models.RfidReader.room_name == room_name,
+        models.RfidReader.active == True,
+    ).first()
+    if not room_reader:
+        raise HTTPException(status_code=404, detail="No active RFID reader is assigned to this room")
+
+    ensure_teacher_can_manage_course(db, teacher_email, schedule_req.course_id)
+    overlap = db.query(models.ClassSchedule).filter(
+        models.ClassSchedule.room_name == room_name,
+        models.ClassSchedule.weekday == schedule_req.weekday,
+        models.ClassSchedule.active == True,
+        models.ClassSchedule.start_time < schedule_req.end_time,
+        models.ClassSchedule.end_time > schedule_req.start_time,
+    ).first()
+    if overlap:
+        raise HTTPException(status_code=409, detail="This room already has an overlapping class slot")
+
+    schedule = models.ClassSchedule(
+        course_id=schedule_req.course_id,
+        room_name=room_name,
+        weekday=schedule_req.weekday,
+        start_time=schedule_req.start_time,
+        end_time=schedule_req.end_time,
+        timezone=schedule_req.timezone,
+        schedule_source="LECTURER",
+        created_by=teacher_email,
+    )
+    db.add(schedule)
+    db.commit()
+    db.refresh(schedule)
+    return {"id": str(schedule.id), "message": "RFID class schedule created"}
+
+@app.delete("/rfid/teacher/schedules/{schedule_id}")
+def delete_teacher_rfid_schedule(
+    schedule_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    teacher_email = (current_user.get("email") or "").strip().lower()
+    schedule_uuid = parse_uuid_or_400(schedule_id, "schedule_id")
+    schedule = db.query(models.ClassSchedule).filter(
+        models.ClassSchedule.id == schedule_uuid,
+        models.ClassSchedule.active == True,
+    ).first()
+    if not schedule:
+        raise HTTPException(status_code=404, detail="RFID schedule not found")
+    ensure_teacher_can_manage_course(db, teacher_email, schedule.course_id)
+    schedule.active = False
+    db.commit()
+    return {"success": True, "message": "RFID class schedule disabled"}
+
+def authenticate_rfid_reader(reader_id: str, reader_key: str, db: Session) -> models.RfidReader:
+    reader_uuid = parse_uuid_or_400(reader_id, "reader_id")
+    reader = db.query(models.RfidReader).filter(models.RfidReader.id == reader_uuid).first()
+    if not reader or not reader.active:
+        raise HTTPException(status_code=401, detail="Reader is not registered or active")
+    supplied_hash = hashlib.sha256(reader_key.encode("utf-8")).hexdigest()
+    if not hmac.compare_digest(reader.key_hash, supplied_hash):
+        raise HTTPException(status_code=401, detail="Invalid reader key")
+    return reader
+
+def get_reader_time(reader: models.RfidReader, db: Session) -> datetime:
+    if reader.name == "Virtual Classroom Reader" and RFID_SIMULATOR_ENABLED:
+        return get_simulator_now(db)
+    return datetime.now(timezone.utc)
+
+@app.get("/rfid/reader/state")
+def get_rfid_reader_state(
+    x_reader_id: str = Header(default=""),
+    x_reader_key: str = Header(default=""),
+    db: Session = Depends(get_db),
+):
+    reader = authenticate_rfid_reader(x_reader_id, x_reader_key, db)
+    if not reader.room_name:
+        raise HTTPException(status_code=409, detail="Reader has no assigned room")
+    return rfid_scheduling.process_room(
+        db,
+        reader.room_name,
+        get_reader_time(reader, db),
+        MENTAL_ACCESS_STUDENT_MAP.keys(),
+    )
+
+@app.post("/rfid/events", response_model=schemas.RfidEventResponse)
+def submit_rfid_event(
+    event_req: schemas.RfidEventRequest,
+    x_reader_id: str = Header(default=""),
+    x_reader_key: str = Header(default=""),
+    db: Session = Depends(get_db),
+):
+    reader = authenticate_rfid_reader(x_reader_id, x_reader_key, db)
+
+    credential = db.query(models.StudentCardCredential).filter(
+        models.StudentCardCredential.credential_hash == hash_card_id(event_req.card_id)
+    ).first()
+    if not credential or not credential.active:
+        raise HTTPException(status_code=403, detail="Unknown or revoked RFID card")
+    if event_req.session_id:
+        return record_rfid_event(
+            db,
+            event_req.session_id,
+            credential,
+            event_req.event_type,
+            "RFID",
+            reader.id,
+        )
+    if not reader.room_name:
+        raise HTTPException(status_code=409, detail="Reader has no assigned room")
+    try:
+        tap = rfid_scheduling.record_room_tap(
+            db, reader, credential, event_req.event_type, "RFID",
+            get_reader_time(reader, db), MENTAL_ACCESS_STUDENT_MAP.keys(),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    return {
+        "success": True,
+        "message": f"{tap['event_type'].title()} recorded for {tap['student_name']}.",
+        "event_type": tap["event_type"],
+        "student_name": tap["student_name"],
+        "occurred_at": tap["occurred_at"],
+    }
+
+@app.post("/rfid/simulator/setup")
+def setup_rfid_simulator(db: Session = Depends(get_db)):
+    require_rfid_simulator()
+    hash_card_id("SIM-CARD-001")
+
+    course = db.query(models.Course).filter(models.Course.code == "RFID-DEMO").first()
+    if not course:
+        course = models.Course(
+            name="RFID Virtual Demo",
+            course_type="Demo",
+            code="RFID-DEMO",
+            semester=current_semester_label(),
+        )
+        db.add(course)
+        db.flush()
+
+    for active_session in db.query(models.Session).filter(
+        models.Session.course_id == course.id,
+        models.Session.active == True,
+    ).all():
+        active_session.active = False
+        active_session.expires_at = datetime.now(timezone.utc)
+
+    demo_session = models.Session(course_id=course.id, active=True)
+    db.add(demo_session)
+    db.flush()
+
+    demo_students = [
+        ("rfid.demo.01@example.invalid", "Alex Demo", "SIM-CARD-001", True),
+        ("rfid.demo.02@example.invalid", "Sam Demo", "SIM-CARD-002", True),
+        ("rfid.demo.03@example.invalid", "Taylor Demo", "SIM-CARD-003", False),
+    ]
+    cards = []
+    for email, name, card_id, should_be_active in demo_students:
+        student = db.query(models.User).filter(models.User.email == email).first()
+        if not student:
+            student = models.User(email=email, name=name, role=models.UserRole.STUDENT)
+            db.add(student)
+            db.flush()
+        registration = db.query(models.CourseStudentRegistry).filter(
+            models.CourseStudentRegistry.course_id == course.id,
+            models.CourseStudentRegistry.student_email == email,
+        ).first()
+        if not registration:
+            db.add(models.CourseStudentRegistry(
+                course_id=course.id,
+                student_email=email,
+                student_name=name,
+                uploaded_by="RFID demo",
+            ))
+
+        credential_hash = hash_card_id(card_id)
+        credential = db.query(models.StudentCardCredential).filter(
+            models.StudentCardCredential.credential_hash == credential_hash
+        ).first()
+        if not credential:
+            credential = models.StudentCardCredential(
+                user_id=student.id,
+                credential_hash=credential_hash,
+                active=should_be_active,
+                revoked_at=None if should_be_active else datetime.now(timezone.utc),
+            )
+            db.add(credential)
+        elif not should_be_active and credential.active:
+            credential.active = False
+            credential.revoked_at = datetime.now(timezone.utc)
+
+        cards.append({
+            "card_id": card_id,
+            "student_name": name,
+            "active": should_be_active and credential.active,
+        })
+
+    virtual_reader = db.query(models.RfidReader).filter(
+        models.RfidReader.name == "Virtual Classroom Reader"
+    ).first()
+    if not virtual_reader:
+        virtual_reader = models.RfidReader(
+            name="Virtual Classroom Reader",
+            key_hash=hashlib.sha256(b"local-virtual-rfid-reader").hexdigest(),
+            active=True,
+        )
+        db.add(virtual_reader)
+    else:
+        virtual_reader.active = True
+
+    db.commit()
+    return {
+        "session_id": str(demo_session.id),
+        "course_name": course.name,
+        "reader_name": virtual_reader.name,
+        "cards": cards,
+    }
+
+@app.post("/rfid/simulator/schedule-setup")
+def setup_rfid_schedule_simulator(db: Session = Depends(get_db)):
+    require_rfid_simulator()
+    hash_card_id("SIM-CARD-001")
+    try:
+        zone = ZoneInfo(ATTENDANCE_TIMEZONE)
+    except ZoneInfoNotFoundError:
+        raise HTTPException(status_code=500, detail="ATTENDANCE_TIMEZONE is not a valid IANA time zone")
+
+    local_now = datetime.now(zone)
+    clock = db.query(models.RfidSimulatorClock).filter(models.RfidSimulatorClock.id == 1).first()
+    simulation_date = local_now.date()
+    if clock:
+        previous_local = to_utc_aware(clock.current_time).astimezone(zone)
+        simulation_date = previous_local.date() + timedelta(days=7)
+    simulated_local_time = datetime.combine(
+        simulation_date,
+        datetime.strptime("07:55", "%H:%M").time(),
+        tzinfo=zone,
+    )
+    simulated_now = simulated_local_time.astimezone(timezone.utc)
+
+    course_specs = [
+        ("RFID-DEMO", "RFID Virtual Demo"),
+        ("RFID-DEMO-NEXT", "RFID Next Class Demo"),
+    ]
+    demo_courses = []
+    for code, name in course_specs:
+        course = db.query(models.Course).filter(models.Course.code == code).first()
+        if not course:
+            course = models.Course(
+                name=name,
+                course_type="Demo",
+                code=code,
+                semester=current_semester_label(),
+            )
+            db.add(course)
+            db.flush()
+        demo_courses.append(course)
+
+    virtual_reader = db.query(models.RfidReader).filter(
+        models.RfidReader.name == "Virtual Classroom Reader"
+    ).first()
+    if not virtual_reader:
+        virtual_reader = models.RfidReader(
+            name="Virtual Classroom Reader",
+            room_name="Demo Lecture Hall",
+            key_hash=hashlib.sha256(b"local-virtual-rfid-reader").hexdigest(),
+            active=True,
+        )
+        db.add(virtual_reader)
+        db.flush()
+    else:
+        virtual_reader.room_name = "Demo Lecture Hall"
+        virtual_reader.active = True
+
+    if clock:
+        previous_simulated_now = get_simulator_now(db)
+        latest_demo_events = {}
+        prior_rows = (
+            db.query(models.RfidTapEvent)
+            .filter(models.RfidTapEvent.reader_id == virtual_reader.id)
+            .all()
+        )
+        for prior_event in prior_rows:
+            previous = latest_demo_events.get(prior_event.credential_id)
+            if previous is None or (
+                to_utc_aware(prior_event.occurred_at),
+                str(prior_event.id),
+            ) > (
+                to_utc_aware(previous.occurred_at),
+                str(previous.id),
+            ):
+                latest_demo_events[prior_event.credential_id] = prior_event
+        for prior_event in latest_demo_events.values():
+            if prior_event.event_type == "ENTRY":
+                db.add(models.RfidTapEvent(
+                    credential_id=prior_event.credential_id,
+                    reader_id=virtual_reader.id,
+                    event_type="EXIT",
+                    source="SIMULATOR_RESET",
+                    occurred_at=rfid_scheduling.database_time(previous_simulated_now),
+                ))
+
+    old_demo_sessions = db.query(models.Session).filter(
+        models.Session.course_id.in_([course.id for course in demo_courses]),
+        models.Session.active == True,
+    ).all()
+    for old_session in old_demo_sessions:
+        old_session.active = False
+        old_session.expires_at = rfid_scheduling.database_time(
+            previous_simulated_now if clock else simulated_now
+        )
+        for attendance in db.query(models.AttendanceLog).filter(
+            models.AttendanceLog.session_id == old_session.id,
+            models.AttendanceLog.checked_out_at.is_(None),
+        ).all():
+            attendance.checked_out_at = rfid_scheduling.database_time(
+                previous_simulated_now if clock else simulated_now
+            )
+
+    existing_schedules = db.query(models.ClassSchedule).filter(
+        models.ClassSchedule.created_by == "RFID demo"
+    ).order_by(models.ClassSchedule.start_time.asc()).all()
+    slot_specs = [
+        (demo_courses[0], datetime.strptime("08:00", "%H:%M").time(), datetime.strptime("09:00", "%H:%M").time()),
+        (demo_courses[1], datetime.strptime("09:00", "%H:%M").time(), datetime.strptime("10:00", "%H:%M").time()),
+    ]
+    for index, (course, start_time, end_time) in enumerate(slot_specs):
+        schedule = existing_schedules[index] if index < len(existing_schedules) else models.ClassSchedule()
+        schedule.course_id = course.id
+        schedule.room_name = virtual_reader.room_name
+        schedule.weekday = simulation_date.weekday()
+        schedule.start_time = start_time
+        schedule.end_time = end_time
+        schedule.timezone = ATTENDANCE_TIMEZONE
+        schedule.schedule_source = "LECTURER"
+        schedule.active = True
+        schedule.created_by = "RFID demo"
+        if index >= len(existing_schedules):
+            db.add(schedule)
+    for schedule in existing_schedules[len(slot_specs):]:
+        schedule.active = False
+
+    demo_students = [
+        ("rfid.demo.01@example.invalid", "Alex Demo", "SIM-CARD-001", True),
+        ("rfid.demo.02@example.invalid", "Sam Demo", "SIM-CARD-002", True),
+        ("rfid.demo.03@example.invalid", "Taylor Demo", "SIM-CARD-003", False),
+    ]
+    cards = []
+    for email, name, card_id, should_be_active in demo_students:
+        student = db.query(models.User).filter(models.User.email == email).first()
+        if not student:
+            student = models.User(email=email, name=name, role=models.UserRole.STUDENT)
+            db.add(student)
+            db.flush()
+        for course in demo_courses:
+            registration = db.query(models.CourseStudentRegistry).filter(
+                models.CourseStudentRegistry.course_id == course.id,
+                models.CourseStudentRegistry.student_email == email,
+            ).first()
+            if not registration:
+                db.add(models.CourseStudentRegistry(
+                    course_id=course.id,
+                    student_email=email,
+                    student_name=name,
+                    uploaded_by="RFID demo",
+                ))
+
+        credential_hash = hash_card_id(card_id)
+        credential = db.query(models.StudentCardCredential).filter(
+            models.StudentCardCredential.credential_hash == credential_hash
+        ).first()
+        if not credential:
+            credential = models.StudentCardCredential(
+                user_id=student.id,
+                credential_hash=credential_hash,
+                active=should_be_active,
+                revoked_at=None if should_be_active else datetime.now(timezone.utc),
+            )
+            db.add(credential)
+        elif not should_be_active and credential.active:
+            credential.active = False
+            credential.revoked_at = datetime.now(timezone.utc)
+        cards.append({
+            "card_id": card_id,
+            "student_name": name,
+            "active": bool(should_be_active and credential.active),
+        })
+
+    if not clock:
+        clock = models.RfidSimulatorClock(id=1, current_time=rfid_scheduling.database_time(simulated_now))
+        db.add(clock)
+    else:
+        clock.current_time = rfid_scheduling.database_time(simulated_now)
+
+    db.commit()
+    state = rfid_scheduling.process_room(
+        db,
+        virtual_reader.room_name,
+        simulated_now,
+        MENTAL_ACCESS_STUDENT_MAP.keys(),
+    )
+    return {
+        "room_name": virtual_reader.room_name,
+        "current_time": simulated_now.isoformat(),
+        "cards": cards,
+        "reader_state": state,
+    }
+
+@app.get("/rfid/simulator/state")
+def get_rfid_simulator_state(db: Session = Depends(get_db)):
+    require_rfid_simulator()
+    reader = db.query(models.RfidReader).filter(
+        models.RfidReader.name == "Virtual Classroom Reader",
+        models.RfidReader.active == True,
+    ).first()
+    if not reader:
+        raise HTTPException(status_code=409, detail="Prepare the virtual schedule demo first")
+    state = rfid_scheduling.process_room(
+        db,
+        reader.room_name,
+        get_simulator_now(db),
+        MENTAL_ACCESS_STUDENT_MAP.keys(),
+    )
+    return {"current_time": get_simulator_now(db).isoformat(), "reader_state": state}
+
+@app.post("/rfid/simulator/advance-time")
+def advance_rfid_simulator_time(
+    clock_req: schemas.RfidSimulatorClockAdvance,
+    db: Session = Depends(get_db),
+):
+    require_rfid_simulator()
+    if clock_req.minutes < 1 or clock_req.minutes > 720:
+        raise HTTPException(status_code=422, detail="Advance minutes must be between 1 and 720")
+    clock = db.query(models.RfidSimulatorClock).filter(models.RfidSimulatorClock.id == 1).first()
+    if not clock:
+        raise HTTPException(status_code=409, detail="Prepare the virtual schedule demo first")
+    new_time = to_utc_aware(clock.current_time) + timedelta(minutes=clock_req.minutes)
+    clock.current_time = rfid_scheduling.database_time(new_time)
+    db.commit()
+    reader = db.query(models.RfidReader).filter(
+        models.RfidReader.name == "Virtual Classroom Reader",
+        models.RfidReader.active == True,
+    ).first()
+    state = rfid_scheduling.process_room(
+        db,
+        reader.room_name,
+        new_time,
+        MENTAL_ACCESS_STUDENT_MAP.keys(),
+    )
+    return {"current_time": new_time.isoformat(), "reader_state": state}
+
+@app.post("/rfid/simulator/tap", response_model=schemas.RfidEventResponse)
+def simulate_rfid_tap(
+    tap_req: schemas.RfidSimulatorTapRequest,
+    db: Session = Depends(get_db),
+):
+    require_rfid_simulator()
+    credential = db.query(models.StudentCardCredential).filter(
+        models.StudentCardCredential.credential_hash == hash_card_id(tap_req.card_id)
+    ).first()
+    if not credential or not credential.active:
+        raise HTTPException(status_code=403, detail="Unknown or revoked RFID card")
+    reader = db.query(models.RfidReader).filter(
+        models.RfidReader.name == "Virtual Classroom Reader",
+        models.RfidReader.active == True,
+    ).first()
+    if not reader:
+        raise HTTPException(status_code=409, detail="Prepare the virtual RFID reader first")
+    if not tap_req.session_id:
+        try:
+            tap = rfid_scheduling.record_room_tap(
+                db,
+                reader,
+                credential,
+                tap_req.event_type,
+                "SIMULATED",
+                get_simulator_now(db),
+                MENTAL_ACCESS_STUDENT_MAP.keys(),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc))
+        return {
+            "success": True,
+            "message": f"{tap['event_type'].title()} recorded for {tap['student_name']}.",
+            "event_type": tap["event_type"],
+            "student_name": tap["student_name"],
+            "occurred_at": tap["occurred_at"],
+        }
+    return record_rfid_event(
+        db,
+        tap_req.session_id,
+        credential,
+        tap_req.event_type,
+        "SIMULATED",
+        reader.id,
+    )
+
+@app.post("/rfid/simulator/end-session")
+def end_rfid_simulator_session(
+    session_id: uuid.UUID,
+    db: Session = Depends(get_db),
+):
+    require_rfid_simulator()
+    demo_course = db.query(models.Course).filter(models.Course.code == "RFID-DEMO").first()
+    session = db.query(models.Session).filter(
+        models.Session.id == session_id,
+        models.Session.course_id == (demo_course.id if demo_course else None),
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Virtual demo session not found")
+    session.active = False
+    session.expires_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"success": True, "message": "Virtual demo session ended"}
 
 @app.post("/attendance", response_model=schemas.ScanResponse)
 def submit_scan(
@@ -1415,6 +2336,9 @@ def submit_scan(
     if not valid_session:
         raise HTTPException(status_code=401, detail="Invalid or expired QR token")
 
+    if valid_session.schedule_id:
+        raise HTTPException(status_code=409, detail="Scheduled classes use the room RFID reader")
+
     uploaded_roster_map = get_uploaded_course_student_roster_map(db, valid_session.course_id)
 
     if uploaded_roster_map:
@@ -1432,23 +2356,37 @@ def submit_scan(
 
     existing = db.query(models.AttendanceLog).filter(
         models.AttendanceLog.session_id == valid_session.id,
-        models.AttendanceLog.device_id == scan_req.deviceToken
+        models.AttendanceLog.user_id == student.id
     ).first()
 
     if existing:
-        raise HTTPException(status_code=400, detail="Device already scanned")
+        raise HTTPException(status_code=409, detail="Student has already checked in for this session")
 
+    recorded_at = datetime.now(timezone.utc)
     log = models.AttendanceLog(
         session_id=valid_session.id,
         user_id=student.id,
         device_id=scan_req.deviceToken,
         ip_address=client_ip,
-        qr_timestamp=datetime.now(timezone.utc),
-        status="PRESENT"
+        qr_timestamp=recorded_at,
+        timestamp=recorded_at,
+        status="PRESENT",
+        source="QR",
     )
-
+    event = models.AttendanceEvent(
+        session_id=valid_session.id,
+        user_id=student.id,
+        event_type="ENTRY",
+        source="QR",
+        occurred_at=recorded_at,
+    )
     db.add(log)
-    db.commit()
+    db.add(event)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Student has already checked in for this session")
     db.refresh(log)
 
     return {
@@ -1478,9 +2416,11 @@ def export_attendance(sessionId: str, db: Session = Depends(get_db)):
     writer.writerow([
         "User ID",
         "User name",
+        "Attendance source",
         "Device ID",
         "IP Address",
-        "Timestamp",
+        "Entry timestamp",
+        "Exit timestamp",
         "Status"
     ])
 
@@ -1492,9 +2432,11 @@ def export_attendance(sessionId: str, db: Session = Depends(get_db)):
         writer.writerow([
             user_id_value,
             user.name if user else "",
+            log.source,
             log.device_id,
             log.ip_address,
             log.timestamp,
+            log.checked_out_at,
             log.status
         ])
 

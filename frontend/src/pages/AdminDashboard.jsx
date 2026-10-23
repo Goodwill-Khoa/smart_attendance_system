@@ -11,6 +11,11 @@ export default function AdminDashboard() {
   const [overview, setOverview] = useState(null);
   const [activeSessions, setActiveSessions] = useState([]);
   const [courseRequests, setCourseRequests] = useState([]);
+  const [semesterDatabase, setSemesterDatabase] = useState(null);
+  const [nextSemesterName, setNextSemesterName] = useState("");
+  const [selectedSemesterCourseIds, setSelectedSemesterCourseIds] = useState([]);
+  const [semesterCourseSelectionInitialized, setSemesterCourseSelectionInitialized] = useState(false);
+  const [switchingSemester, setSwitchingSemester] = useState(false);
   const [lecturers, setLecturers] = useState([]);
   const [selectedLecturerId, setSelectedLecturerId] = useState("");
   const [passwordRequests, setPasswordRequests] = useState([]);
@@ -62,12 +67,13 @@ export default function AdminDashboard() {
 
     try {
       const headers = await getAdminHeaders();
-      const [overviewRes, activeRes, requestsRes, lecturersRes, passwordRequestsRes] = await Promise.all([
+      const [overviewRes, activeRes, requestsRes, lecturersRes, passwordRequestsRes, semesterDatabaseRes] = await Promise.all([
         fetch(`${BASE_URL}/admin/overview`, { headers }),
         fetch(`${BASE_URL}/admin/sessions/active`, { headers }),
         fetch(`${BASE_URL}/admin/course-requests`, { headers }),
         fetch(`${BASE_URL}/admin/lecturers`, { headers }),
         fetch(`${BASE_URL}/admin/password-requests`, { headers }),
+        fetch(`${BASE_URL}/admin/semester-database`, { headers }),
       ]);
 
       if (!overviewRes.ok) {
@@ -81,10 +87,27 @@ export default function AdminDashboard() {
       const requestsData = requestsRes.ok ? await requestsRes.json() : [];
       const lecturersData = lecturersRes.ok ? await lecturersRes.json() : [];
       const passwordRequestsData = passwordRequestsRes.ok ? await passwordRequestsRes.json() : [];
+      const semesterDatabaseData = semesterDatabaseRes.ok ? await semesterDatabaseRes.json() : null;
+      if (!semesterDatabaseRes.ok) {
+        const data = await semesterDatabaseRes.json().catch(() => ({}));
+        setError(data.detail || "Failed to load semester database status.");
+      }
 
       setOverview(overviewData);
       setActiveSessions(activeData);
       setCourseRequests(Array.isArray(requestsData) ? requestsData : []);
+      setSemesterDatabase(semesterDatabaseData);
+      if (semesterDatabaseData) {
+        const semesterCourses = Array.isArray(semesterDatabaseData.courses) ? semesterDatabaseData.courses : [];
+        const availableSemesterCourseIds = new Set(semesterCourses.map((course) => course.id));
+        setSelectedSemesterCourseIds((current) => {
+          if (!semesterCourseSelectionInitialized) return semesterCourses.map((course) => course.id);
+          return current.filter((courseId) => availableSemesterCourseIds.has(courseId));
+        });
+        if (!semesterCourseSelectionInitialized) {
+          setSemesterCourseSelectionInitialized(true);
+        }
+      }
       const nextLecturers = Array.isArray(lecturersData) ? lecturersData : [];
       setLecturers(nextLecturers);
       setSelectedLecturerId((current) => (current && nextLecturers.some((item) => item.id === current) ? current : nextLecturers[0]?.id || ""));
@@ -125,6 +148,64 @@ export default function AdminDashboard() {
     } catch (err) {
       setError("Network error rejecting request.");
     }
+  };
+
+  const handleActivateNextSemester = async () => {
+    setError("");
+    setSuccessMessage("");
+
+    if (!semesterDatabase?.supported) {
+      setError("Semester database switching is available only for local file-based SQLite.");
+      return;
+    }
+    if (!nextSemesterName.trim()) {
+      setError("Enter the name of the new semester.");
+      return;
+    }
+    if (!selectedSemesterCourseIds.length) {
+      setError("Select at least one course to carry into the new semester.");
+      return;
+    }
+    if (semesterDatabase.active_session_count > 0) {
+      setError("End all active class sessions before switching semester databases.");
+      return;
+    }
+    if (!window.confirm(`Create and activate ${nextSemesterName.trim()}? The current semester database will be preserved as an archive.`)) {
+      return;
+    }
+
+    setSwitchingSemester(true);
+    try {
+      const headers = await getAdminHeaders(true);
+      const response = await fetch(`${BASE_URL}/admin/semester-database/activate`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          semester: nextSemesterName.trim(),
+          course_ids: selectedSemesterCourseIds,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setError(data.detail || "Could not activate the new semester database.");
+        return;
+      }
+
+      setSuccessMessage(data.message || "The new semester database is active.");
+      window.setTimeout(() => window.location.reload(), 1200);
+    } catch (err) {
+      setError(err.message || "Network error activating the new semester database.");
+    } finally {
+      setSwitchingSemester(false);
+    }
+  };
+
+  const toggleSemesterCourse = (courseId, checked) => {
+    setSelectedSemesterCourseIds((current) => (
+      checked
+        ? [...new Set([...current, courseId])]
+        : current.filter((id) => id !== courseId)
+    ));
   };
 
   const handleEndAllSessions = async () => {
@@ -342,6 +423,66 @@ export default function AdminDashboard() {
                 <StatCard title="Sessions" value={overview.totalSessions} />
                 <StatCard title="Attendance" value={overview.attendanceLogs} />
               </div>
+            )}
+
+            {semesterDatabase && (
+              <section style={{ border: "1px solid #d8dee6", borderRadius: "12px", background: "#f8fbff", padding: "14px", marginBottom: "20px" }}>
+                <h3 style={{ marginTop: 0, marginBottom: "8px", fontSize: "clamp(16px, 3vw, 18px)" }}>Semester database</h3>
+                {semesterDatabase.supported ? (
+                  <>
+                    <p style={{ color: "#4b5563", fontSize: "clamp(12px, 1.8vw, 14px)" }}>
+                      Active: <strong>{semesterDatabase.active_semester || "Unassigned"}</strong>
+                      {semesterDatabase.active_database ? ` · ${semesterDatabase.active_database}` : ""}
+                    </p>
+                    <p style={{ color: "#4b5563", fontSize: "clamp(12px, 1.8vw, 14px)" }}>
+                      Archived databases remain preserved and are not connected to the active app.
+                      {semesterDatabase.archived_semesters?.length
+                        ? ` Archives: ${semesterDatabase.archived_semesters.join(", ")}.`
+                        : ""}
+                    </p>
+                    {semesterDatabase.active_session_count > 0 && (
+                      <p role="alert" style={{ color: "#991b1b", fontWeight: 700, fontSize: "clamp(12px, 1.8vw, 14px)" }}>
+                        End {semesterDatabase.active_session_count} active session(s) before switching.
+                      </p>
+                    )}
+                    <label style={{ display: "block", marginBottom: "12px", fontSize: "clamp(12px, 1.8vw, 14px)", fontWeight: 600 }}>
+                      New semester name
+                      <input
+                        value={nextSemesterName}
+                        onChange={(event) => setNextSemesterName(event.target.value)}
+                        placeholder="e.g. Spring 2027"
+                        style={{ ...responsiveInputStyle, marginTop: "6px" }}
+                      />
+                    </label>
+                    <p style={{ marginBottom: "8px", fontSize: "clamp(12px, 1.8vw, 14px)", fontWeight: 600 }}>
+                      Courses to carry forward (selected courses and related reference data are copied; attendance history stays in the archive)
+                    </p>
+                    <div style={{ display: "grid", gap: "6px", maxHeight: "220px", overflowY: "auto", padding: "8px", background: "white", border: "1px solid #d8dee6", borderRadius: "8px", marginBottom: "12px" }}>
+                      {semesterDatabase.courses?.map((course) => (
+                        <label key={course.id} style={{ display: "flex", alignItems: "center", gap: "8px", color: "#374151", fontSize: "clamp(12px, 1.8vw, 14px)" }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedSemesterCourseIds.includes(course.id)}
+                            onChange={(event) => toggleSemesterCourse(course.id, event.target.checked)}
+                          />
+                          {course.name} · {course.course_type} · {course.code}
+                        </label>
+                      ))}
+                    </div>
+                    <button
+                      onClick={handleActivateNextSemester}
+                      disabled={switchingSemester || !semesterDatabase.courses?.length || semesterDatabase.active_session_count > 0}
+                      style={{ ...responsiveButtonStyle("#1d4ed8", "white"), border: "none", width: "100%" }}
+                    >
+                      {switchingSemester ? "Creating and activating..." : "Create and activate semester database"}
+                    </button>
+                  </>
+                ) : (
+                  <p style={{ marginBottom: 0, color: "#7c2d12", fontSize: "clamp(12px, 1.8vw, 14px)" }}>
+                    Per-semester database switching is enabled only for local file-based SQLite. This PostgreSQL deployment is unchanged.
+                  </p>
+                )}
+              </section>
             )}
 
             {canManageLecturers && (

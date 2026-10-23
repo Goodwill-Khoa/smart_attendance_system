@@ -1,8 +1,8 @@
 
-# Smart Multi-Modal Attendance v2
+# Smart Multi-Modal Attendance v2 (a biometric or RFID-based  attendance system)
 
 A lightweight, serverless Progressive Web App (PWA) designed to eliminate the 10-15 minute "Time-Leak" of manual classroom attendance, equipped with anti-cheating mechanisms like 10-second dynamic QR hashes and device tracking.
-making use of a RF
+making use of a biometric or RFID-based 
 
 ## 👥 The Team
 * **Khoa Goodwill** - System Architect & Project Manager

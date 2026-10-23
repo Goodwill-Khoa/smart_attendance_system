@@ -1,14 +1,15 @@
 
-# Smart Multi-Modal Attendance
+# Smart Multi-Modal Attendance v2 (a biometric or RFID-based  attendance system)
 
 A lightweight, serverless Progressive Web App (PWA) designed to eliminate the 10-15 minute "Time-Leak" of manual classroom attendance, equipped with anti-cheating mechanisms like 10-second dynamic QR hashes and device tracking.
+making use of a biometric or RFID-based 
 
 ## 👥 The Team
 * **Khoa Goodwill** - System Architect & Project Manager
-* **Zsombók Kevin** - Backend Developer
-* **Li Xuetao** - Frontend Engineer
-* **Curos Maxim** - DevOps & QA Engineer
-* **Naat Yacine** - AI/Data Specialist
+* **Gonzalez Salvador Omar Francisco** - Backend Developer & Scrum Master
+* **Zhao Boning** - Frontend Engineer
+* **Akylbek Kyzy Asel** - DevOps & QA Engineer
+* **Gultekin Elif** - AI/Data Specialist & Quality Assurance 
 
 ## 🏗️ Architecture Stack
 This project follows a TOGAF-aligned Microservices Architecture:
@@ -16,6 +17,7 @@ This project follows a TOGAF-aligned Microservices Architecture:
 * **Backend (Application Services):** Python FastAPI 
 * **Database (Data Architecture):** PostgreSQL (Hosted on Supabase) with SQLAlchemy ORM
 * **External Services:** Supabase OAuth (ELTE Google/Microsoft Single Sign-On)
+* **Attendance input:** Rotating QR remains available; RFID readers submit card taps through the authenticated backend API. A development-only virtual reader supports hardware-free demos.
 
 ## 🌐 Live Deployment
 
@@ -56,6 +58,9 @@ DATABASE_URL=sqlite:///./attendance.db
 SUPABASE_URL=https://your-project.supabase.co
 SUPERUSER_KEY=admin123
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_optional_for_admin_provisioning
+RFID_CREDENTIAL_HMAC_KEY=replace-with-at-least-32-random-characters
+RFID_SIMULATOR_ENABLED=false
+ATTENDANCE_TIMEZONE=Europe/Budapest
 ```
 
 Frontend uses `frontend/.env`:
@@ -103,6 +108,66 @@ Notes:
 - If npm commands are blocked by PowerShell execution policy, keep using `cmd /c npm ...`.
 - Restart the backend after backend model changes so SQLite schema upgrades run.
 - `SUPABASE_SERVICE_ROLE_KEY` is only required for admin actions that create lecturers or reset lecturer passwords in Supabase.
+
+### Local Semester Databases (SQLite only)
+
+Semester database switching is a local-development feature and is available only when `DATABASE_URL` points to a file-based SQLite database. PostgreSQL deployments, including the hosted production database, are not switched or modified by this workflow.
+
+To start a new semester locally:
+
+1. Sign in as an administrator and open the Admin Dashboard.
+2. Confirm that all class sessions have ended.
+3. Enter a new semester name, select the courses to carry forward, and confirm activation.
+4. The backend creates a new SQLite database, copies shared user/lecturer and RFID reference data plus the selected course assignments, student registries, and schedules, then switches the running app to it.
+
+The prior database is preserved as an archive. Attendance sessions, attendance logs/events, and other operational history stay in that archived database and are not copied into the new semester. By default, semester database files and their registry are stored in `backend/semester_databases/`; keep this directory backed up if the local records matter. It is excluded from Git. Do not manually delete or edit the registry or database files while the backend is running.
+
+### RFID Attendance and Virtual Reader Demo
+
+The RFID prototype supports separate entry and exit taps for a student in a class session. Entry creates the attendance record; exit requires an existing entry and adds its exit timestamp. A student can have at most one entry and one exit event per session. The QR flow remains available as a temporary entry-only fallback and deduplicates by student and session rather than browser device.
+
+The backend stores a keyed HMAC of the normalized card identifier, not the identifier itself. Keep `RFID_CREDENTIAL_HMAC_KEY` private, stable, and at least 32 characters long. Generate a unique value for each environment; changing it makes existing card credentials unresolvable. Do not put names, email addresses, birth dates, or other personal data on the card.
+
+For a real reader integration, an administrator registers a reader with `POST /admin/rfid/readers` and enrolls student cards with `POST /admin/rfid/credentials`. The reader API key is returned only at registration; store it securely on the reader gateway. Revoke a lost card with `POST /admin/rfid/credentials/{credential_id}/revoke`. Authenticated readers submit taps to `POST /rfid/events` with `X-Reader-ID` and `X-Reader-Key` headers and a JSON body such as:
+
+```json
+{
+  "card_id": "reader-supplied-card-identifier",
+  "event_type": "ENTRY"
+}
+```
+
+In scheduled mode, omit `session_id` so the reader's assigned room and active schedule determine the class. Include `session_id` only to record a tap against a specific active session. The backend validates the reader, card assignment, student role, roster, and duplicate/entry-exit state; reader timestamps are assigned by the server. A card UID alone can be cloned, so this prototype does not claim cryptographic proof of identity; stronger assurance requires compatible secure cards and readers.
+
+#### Scheduled classroom workflow
+
+The prototype now supports schedule-driven attendance with a separate room-bound RFID reader frontend. Lecturers create recurring weekly course slots in `/rfid-schedules`, assign each slot to a room, and can monitor its waiting, present, late, and left lists through the reader view at `/rfid-reader`. The schedule engine creates a separate register for each class occurrence; it retains the underlying entry/exit events rather than deleting or resetting them.
+
+Schedules are currently configured in the lecturer interface; importing the institution's timetable is not implemented. Each schedule includes a course, weekday, start/end time, room, and time zone. `ATTENDANCE_TIMEZONE` defaults to `Europe/Budapest` and is used by the virtual schedule demo. A reader is bound to a room when it is registered, and its events are applied to the matching scheduled class in that room.
+
+The implemented attendance rules are:
+
+1. For a class scheduled at **08:00**, the system uses **08:15** as the official attendance snapshot (a 15-minute grace/waiting period after the scheduled start).
+2. Students detected inside before the snapshot remain in a waiting list. At 08:15, students still inside are added to that class register as present and on time. Anyone who exits before the snapshot is removed from the waiting list and is not added to that register.
+3. A student who enters after the 08:15 snapshot is added as **Late**. The system keeps the late marker even after the student exits.
+4. Students still inside when the next scheduled class begins are carried into that next slot's waiting list for that room/reader. If they are still inside at that class's 15-minute snapshot, they are added to the new class register. If they exit before that snapshot, they are removed and are not added.
+5. After a student has been added to the present list, an exit moves them to the live **Left** list. If the exit occurs before 20 minutes have elapsed from the scheduled class start, their attendance outcome is **Left early**; otherwise, their attendance outcome remains present (or late) with the exit time recorded. Entry and exit events are retained rather than deleted when the live list changes.
+
+**Example:** For an 08:00 class, Alex taps in at 07:55 and stays in the room through 08:15. Alex is added to the 08:00 class at the snapshot. A student who exits before 08:15 is removed from the waiting list and is not registered for that class. A student who taps in after the snapshot is added as late. Students still in the room at the next class's start join that class's waiting list, and are added to its register at the new snapshot if they are still inside.
+
+The 20-minute rule is measured from the scheduled start (08:00 in the example), not from the 08:15 snapshot. Overlapping classes, room changes, cancellations, and timetable import remain integration/policy work; schedule times use the configured time zone.
+
+To demonstrate the schedule flow without hardware:
+
+1. Set `RFID_CREDENTIAL_HMAC_KEY` to a new private random value (at least 32 characters), set `RFID_SIMULATOR_ENABLED=true`, and set `ATTENDANCE_TIMEZONE` as needed in `backend/.env`. Restart the backend.
+2. Open `http://127.0.0.1:5173/rfid-demo` and choose **Prepare / reset schedule demo**. The virtual reader starts at 07:55 with synthetic cards and 08:00/09:00 class slots.
+3. Tap a virtual card for **Entry** and use the clock controls to advance through 08:15. Confirm that students still in the room move from waiting to present.
+4. Try an exit before the snapshot, a post-snapshot entry, and an exit before 08:20 to demonstrate removal, late arrival, and the 20-minute early-exit rule.
+5. Leave a student in the room, advance to the next slot, and then through its snapshot to demonstrate room carryover into the next register.
+
+The schedule demo is gated by `RFID_SIMULATOR_ENABLED`; its endpoints return `404` when disabled. It uses synthetic `example.invalid` students and does not emulate radio communication or require physical cards/readers. Keep simulator mode disabled in preview and production.
+
+Presentation: [RFID attendance upgrade slides](./RFID_Attendance_Upgrade_Presentation.pptx).
 
 <div style="page-break-after: always"></div>
 

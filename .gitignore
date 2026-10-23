@@ -8,6 +8,7 @@ dist/
 # Python/Backend
 __pycache__/
 *.pyc
+backend/semester_databases/
 venv/
 env/
 .venv/

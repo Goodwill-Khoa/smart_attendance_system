@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, time
 
 # --- Auth Schemas ---
 class LoginRequest(BaseModel):
@@ -38,6 +38,10 @@ class CourseCreate(BaseModel):
     code: str
     semester: str
     course_type: str = "L"
+
+class SemesterDatabaseActivateRequest(BaseModel):
+    semester: str
+    course_ids: list[UUID]
 
 class TeacherCourseAssignRequest(BaseModel):
     teacher_email: str
@@ -90,3 +94,40 @@ class ScanRequest(BaseModel):
 class ScanResponse(BaseModel):
     success: bool
     message: str
+
+class RfidReaderCreate(BaseModel):
+    name: str
+    room_name: str
+
+class ClassScheduleCreate(BaseModel):
+    course_id: UUID
+    room_name: str
+    weekday: int
+    start_time: time
+    end_time: time
+    timezone: str = "Europe/Budapest"
+
+class RfidCredentialCreate(BaseModel):
+    student_email: str
+    student_name: Optional[str] = None
+    card_id: str
+
+class RfidEventRequest(BaseModel):
+    session_id: Optional[UUID] = None
+    card_id: str
+    event_type: str
+
+class RfidSimulatorTapRequest(BaseModel):
+    session_id: Optional[UUID] = None
+    card_id: str
+    event_type: str
+
+class RfidSimulatorClockAdvance(BaseModel):
+    minutes: int
+
+class RfidEventResponse(BaseModel):
+    success: bool
+    message: str
+    event_type: str
+    student_name: str
+    occurred_at: datetime

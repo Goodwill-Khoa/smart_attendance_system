@@ -9,7 +9,7 @@ making use of a biometric or RFID-based
 * **Gonzalez Salvador Omar Francisco** - Backend Developer & Scrum Master
 * **Zhao Boning** - Frontend Engineer
 * **Akylbek Kyzy Asel** - DevOps & QA Engineer
-* **Gultekin Elif** - AI/Data Specialist & Quality Assurance 
+* **Gultekin Elif** - AI and Data Specialist & Quality Assurance 
 
 ## 🏗️ Architecture Stack
 This project follows a TOGAF-aligned Microservices Architecture:

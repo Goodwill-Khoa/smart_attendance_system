@@ -109,6 +109,16 @@ export default function Teacher() {
 
   const headerActions = [
     {
+      label: "Teacher Dashboard",
+      onClick: () => navigate("/teacher-courses"),
+      style: { background: "white", color: "#0f1f44", border: "1px solid #b5c5f0" }
+    },
+    {
+      label: "RFID Schedules",
+      onClick: () => navigate("/rfid-schedules"),
+      style: { background: "white", color: "#0f1f44", border: "1px solid #b5c5f0" }
+    },
+    {
       label: "Export",
       onClick: handleExport,
       style: { background: "white", color: "#0f1f44", border: "1px solid #b5c5f0" }

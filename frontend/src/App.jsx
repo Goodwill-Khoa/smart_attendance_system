@@ -15,6 +15,9 @@ import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import StudentFlow from "./pages/StudentFlow";
 import AuthCallback from "./pages/AuthCallback";
+import RfidDemo from "./pages/RfidDemo";
+import RfidReader from "./pages/RfidReader";
+import RfidSchedules from "./pages/RfidSchedules";
 
 function StudentRoute({ user, role, children }) {
   if (!user) return <Navigate to="/login" replace />;
@@ -179,6 +182,8 @@ export default function App() {
         <Route path="/login" element={user ? <Navigate to={roleHomePath(role)} replace /> : <Login />} />
 
         <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/rfid-demo" element={<RfidDemo />} />
+        <Route path="/rfid-reader" element={<RfidReader />} />
 
         {/* 教师登录页 */}
         <Route path="/teacher-login" element={user ? <Navigate to={roleHomePath(role)} replace /> : <TeacherLogin />} />
@@ -200,6 +205,15 @@ export default function App() {
           element={
             <TeacherRoute user={user} role={role}>
               <TeacherCourses user={user} />
+            </TeacherRoute>
+          }
+        />
+
+        <Route
+          path="/rfid-schedules"
+          element={
+            <TeacherRoute user={user} role={role}>
+              <RfidSchedules user={user} />
             </TeacherRoute>
           }
         />

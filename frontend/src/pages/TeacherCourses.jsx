@@ -243,6 +243,17 @@ export default function TeacherCourses({ user }) {
       return;
     }
 
+    if (course.activeSessionId) {
+      navigate("/teacher", {
+        state: {
+          sessionId: course.activeSessionId,
+          courseId: course.id,
+          courseName: course.name,
+        },
+      });
+      return;
+    }
+
     try {
       const jwt = await getJWT();
       const res = await fetch(`${BASE_URL}/sessions`, {
@@ -361,6 +372,11 @@ export default function TeacherCourses({ user }) {
   const selectedCourse = courses.find((course) => course.id === selectedCourseId);
 
   const headerActions = [
+    {
+      label: "RFID Schedules",
+      onClick: () => navigate("/rfid-schedules"),
+      style: { background: "white", color: "#111827", border: "1px solid #d1d5db" }
+    },
     {
       label: "Change Password",
       onClick: () => navigate("/teacher-password"),
@@ -539,7 +555,7 @@ export default function TeacherCourses({ user }) {
                 onClick={handleStartSelectedCourse}
                 style={{ ...responsiveButtonStyle("black", "white"), width: "100%" }}
               >
-                Start Session
+                {selectedCourse.activeSessionId ? "Resume Session" : "Start Session"}
               </button>
 
               <div style={{ marginTop: "14px", borderTop: "1px solid #e5e7eb", paddingTop: "12px" }}>

@@ -19,6 +19,12 @@ This project follows a TOGAF-aligned Microservices Architecture:
 * **External Services:** Supabase OAuth (ELTE Google/Microsoft Single Sign-On)
 * **Attendance input:** Rotating QR remains available; RFID readers submit card taps through the authenticated backend API. A development-only virtual reader supports hardware-free demos.
 
+## 📋 Trello
+
+The project was managed using **Trello** to organize tasks, track development progress, and coordinate responsibilities among team members. The board was divided into tasks according to the project's main development activities, allowing the team to monitor completed, ongoing, and upcoming work throughout the project lifecycle.
+
+![Trello Board](./Trello.png)
+
 ## 🌐 Live Deployment
 
 Current published endpoints:

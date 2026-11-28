@@ -21,6 +21,7 @@ import io, csv
 from fastapi.responses import Response
 import os
 import re
+import ipaddress
 import requests
 import secrets
 import string
@@ -483,6 +484,14 @@ def seed_mental_access_students():
                 user.name = full_name
                 user.role = models.UserRole.STUDENT
 
+            ensure_local_credential(
+                db,
+                username=normalized_email,
+                password=DEFAULT_TEST_STUDENT_PASSWORD,
+                role="STUDENT",
+                user_email=normalized_email,
+            )
+
         db.commit()
 
 ensure_schema_upgrades()
@@ -625,6 +634,7 @@ def verify_admin(x_admin_key: str = Header(default="")):
         raise HTTPException(status_code=401, detail="Invalid admin key")
 
 def verify_admin_access(
+    request: Request,
     x_admin_key: str = Header(default=""),
     credentials: HTTPAuthorizationCredentials | None = Depends(optional_security),
     db: Session = Depends(get_db),
@@ -635,7 +645,8 @@ def verify_admin_access(
     if not credentials:
         raise HTTPException(status_code=401, detail="Admin authentication required")
 
-    payload = auth.verify_token(credentials.credentials)
+    client_host = request.client.host if request.client else None
+    payload = auth.verify_token(credentials.credentials, client_host=client_host)
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid token")
 
@@ -1035,8 +1046,9 @@ def read_root():
     return {"message": "Smart Multi-Modal Attendance API is running!"}
 
 @app.post("/auth/login", response_model=schemas.LoginResponse)
-def login(request: schemas.LoginRequest, db: Session = Depends(get_db)):
-    payload = auth.verify_token(request.providerToken)
+def login(request: schemas.LoginRequest, http_request: Request, db: Session = Depends(get_db)):
+    client_host = http_request.client.host if http_request.client else None
+    payload = auth.verify_token(request.providerToken, client_host=client_host)
 
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid token")
@@ -1071,6 +1083,66 @@ def login(request: schemas.LoginRequest, db: Session = Depends(get_db)):
         "email": user.email,
         "name": user.name,
         "role": user.role.value
+    }
+
+@app.post("/auth/local-demo-login")
+def local_demo_login(
+    login_req: schemas.LocalDemoLoginRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    if not auth.local_demo_enabled:
+        raise HTTPException(status_code=404, detail="Local demo authentication is disabled")
+
+    client_host = request.client.host if request.client else ""
+    try:
+        if not ipaddress.ip_address(client_host).is_loopback:
+            raise HTTPException(status_code=403, detail="Local demo login is only available from this computer")
+    except ValueError as error:
+        raise HTTPException(status_code=403, detail="Local demo login is only available from this computer") from error
+
+    role = login_req.role.strip().upper()
+    if role not in {"STUDENT", "TEACHER", "SUPERUSER"}:
+        raise HTTPException(status_code=400, detail="Invalid local demo role")
+
+    username = login_req.username.strip().lower()
+    credential = (
+        db.query(models.LocalCredential)
+        .filter(
+            models.LocalCredential.username == username,
+            models.LocalCredential.role == role,
+            models.LocalCredential.active == True,
+        )
+        .first()
+    )
+    supplied_password_hash = hash_local_password(login_req.password)
+    if not credential or not hmac.compare_digest(credential.password_hash, supplied_password_hash):
+        raise HTTPException(status_code=401, detail="Invalid local demo username or password")
+
+    email = (credential.user_email or "").strip().lower()
+    if not email and role == "SUPERUSER":
+        email = SUPERUSER_EMAIL.strip().lower()
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="Local demo account is not available in this database")
+
+    token = auth.create_local_demo_token({
+        "sub": str(user.id),
+        "email": user.email,
+        "user_metadata": {"name": user.name, "full_name": user.name},
+        "app_metadata": {"provider": "local-demo"},
+        "role": role,
+    })
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "expires_in": 28800,
+        "user": {
+            "id": str(user.id),
+            "email": user.email,
+            "user_metadata": {"name": user.name, "full_name": user.name},
+            "app_metadata": {"provider": "local-demo"},
+        },
     }
 
 @app.post("/auth/session-sync", response_model=schemas.AuthSessionSyncResponse)

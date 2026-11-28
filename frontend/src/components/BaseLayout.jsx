@@ -9,7 +9,7 @@ import React from "react";
  * - headerActions: Array of button objects {label, onClick, style?, disabled?}
  * - maxWidth: Max width of content card (default: "600px")
  * - minHeight: Min height of main area (default: "80vh")
- * - backgroundColor: Background color of overlay (default: "rgba(0,0,0,0.2)")
+ * - backgroundColor: Background color of overlay (default: "rgba(15,23,42,0.6)")
  * - cardStyle: Additional styles for content card
  */
 export default function BaseLayout({
@@ -18,7 +18,7 @@ export default function BaseLayout({
   headerActions = [],
   maxWidth = "600px",
   minHeight = "80vh",
-  backgroundColor = "rgba(0,0,0,0.2)",
+  backgroundColor = "rgba(15,23,42,0.6)",
   cardStyle = {},
 }) {
   return (
@@ -50,7 +50,7 @@ export default function BaseLayout({
             justifyContent: "space-between",
             alignItems: "center",
             padding: "clamp(16px, 3vw, 40px) clamp(12px, 4vw, 5vw)",
-            color: "white",
+            color: "var(--color-text-inverse)",
             flexWrap: "wrap",
             gap: "12px",
           }}
@@ -84,7 +84,7 @@ export default function BaseLayout({
                   borderRadius: "20px",
                   border: action.style?.border || "none",
                   background: action.style?.background || "black",
-                  color: action.style?.color || "white",
+                  color: action.style?.color || "var(--color-text-inverse)",
                   cursor: action.disabled ? "not-allowed" : "pointer",
                   fontSize: "clamp(13px, 2vw, 16px)",
                   whiteSpace: "nowrap",
@@ -139,7 +139,8 @@ export const responsiveInputStyle = {
   borderRadius: "10px",
   border: "1px solid #ccc",
   fontSize: "clamp(13px, 1.8vw, 16px)",
-  color: "#111",
+  color: "var(--color-text-primary)",
+  backgroundColor: "var(--color-surface)",
   width: "100%",
   boxSizing: "border-box",
 };
@@ -147,7 +148,10 @@ export const responsiveInputStyle = {
 /**
  * Utility function for responsive button styling
  */
-export const responsiveButtonStyle = (bgColor = "black", textColor = "white") => ({
+export const responsiveButtonStyle = (
+  bgColor = "var(--color-text-primary)",
+  textColor = "var(--color-text-inverse)"
+) => ({
   padding: "clamp(8px, 1.5vw, 12px) clamp(12px, 2.5vw, 18px)",
   borderRadius: "10px",
   border: "none",
@@ -186,7 +190,7 @@ export const responsiveHeadingStyle = {
  */
 export const responsiveSubtextStyle = {
   fontSize: "clamp(12px, 2vw, 14px)",
-  color: "#666",
+  color: "var(--color-text-secondary)",
   marginBottom: "20px",
   textAlign: "center",
 };

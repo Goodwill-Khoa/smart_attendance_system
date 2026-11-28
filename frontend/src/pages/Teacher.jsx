@@ -111,17 +111,17 @@ export default function Teacher() {
     {
       label: "Teacher Dashboard",
       onClick: () => navigate("/teacher-courses"),
-      style: { background: "white", color: "#0f1f44", border: "1px solid #b5c5f0" }
+      style: { background: "white", color: "var(--color-text-primary)", border: "1px solid #b5c5f0" }
     },
     {
       label: "RFID Schedules",
       onClick: () => navigate("/rfid-schedules"),
-      style: { background: "white", color: "#0f1f44", border: "1px solid #b5c5f0" }
+      style: { background: "white", color: "var(--color-text-primary)", border: "1px solid #b5c5f0" }
     },
     {
       label: "Export",
       onClick: handleExport,
-      style: { background: "white", color: "#0f1f44", border: "1px solid #b5c5f0" }
+      style: { background: "white", color: "var(--color-text-primary)", border: "1px solid #b5c5f0" }
     },
     {
       label: "Logout",
@@ -135,13 +135,13 @@ export default function Teacher() {
       headerTitle="Live QR Session"
       headerActions={headerActions}
       maxWidth="640px"
-      backgroundColor="rgba(237, 242, 255, 0.9)"
+      backgroundColor="rgba(15,23,42,0.6)"
     >
       <h2 style={{
         textAlign: "center",
         marginBottom: "12px",
         fontSize: "clamp(24px, 5vw, 36px)",
-        color: "#0f1f44"
+        color: "var(--color-text-primary)"
       }}>
         {courseName ? courseName : "Attendance Session"}
       </h2>
@@ -149,7 +149,7 @@ export default function Teacher() {
       <p style={{
         textAlign: "center",
         marginBottom: "22px",
-        color: "#42527a",
+        color: "var(--color-text-secondary)",
         fontSize: "clamp(13px, 1.8vw, 15px)"
       }}>
         Students scan this QR code to check in.
@@ -160,7 +160,7 @@ export default function Teacher() {
           marginBottom: "14px",
           border: "1px solid #fecaca",
           background: "#fef2f2",
-          color: "#991b1b",
+          color: "var(--color-error)",
           borderRadius: "12px",
           padding: "clamp(10px, 2vw, 14px)",
           fontWeight: 700,
@@ -174,7 +174,7 @@ export default function Teacher() {
       {error && (
         <div style={{
           marginBottom: "15px",
-          color: "#a61d24",
+          color: "var(--color-error)",
           fontWeight: "bold",
           textAlign: "center",
           fontSize: "clamp(12px, 1.8vw, 14px)"
@@ -202,7 +202,7 @@ export default function Teacher() {
             includeMargin={true}
           />
         ) : (
-          <span style={{ color: "#666", fontSize: "clamp(14px, 2vw, 16px)" }}>
+          <span style={{ color: "var(--color-text-secondary)", fontSize: "clamp(14px, 2vw, 16px)" }}>
             Loading QR...
           </span>
         )}
@@ -223,7 +223,7 @@ export default function Teacher() {
           marginTop: "0",
           marginBottom: "0",
           fontSize: "clamp(12px, 1.8vw, 13px)",
-          color: "#555",
+          color: "var(--color-text-secondary)",
           textAlign: "center"
         }}>
           Auto refresh every 10 seconds
@@ -233,7 +233,7 @@ export default function Teacher() {
       <button
         onClick={handleEndSession}
         style={{
-          ...responsiveButtonStyle("#c62828", "white"),
+          ...responsiveButtonStyle("var(--color-error)", "var(--color-text-inverse)"),
           width: "100%",
           fontWeight: "bold",
           boxShadow: "0 10px 20px rgba(0,0,0,0.2)",

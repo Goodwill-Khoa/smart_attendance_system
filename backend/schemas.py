@@ -24,6 +24,11 @@ class AuthSessionSyncResponse(BaseModel):
     role: str
     isAdmin: bool
 
+class LocalDemoLoginRequest(BaseModel):
+    username: str
+    password: str
+    role: str
+
 # --- Session Schemas ---
 class SessionCreate(BaseModel):
     course_id: UUID

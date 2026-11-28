@@ -14,7 +14,7 @@ const buttonStyle = {
   border: 0,
   borderRadius: "8px",
   padding: "10px 14px",
-  color: "white",
+  color: "var(--color-text-inverse)",
   background: "#111827",
   fontWeight: 700,
   cursor: "pointer",
@@ -165,7 +165,7 @@ export default function RfidDemo() {
       </div>
 
       {error && (
-        <div role="alert" style={{ ...cardStyle, color: "#991b1b", background: "#fef2f2" }}>
+        <div role="alert" style={{ ...cardStyle, color: "var(--color-error)", background: "#fef2f2" }}>
           {error}
           {error.includes("RFID simulator is disabled") && (
             <p style={{ marginBottom: 0 }}>
@@ -174,7 +174,7 @@ export default function RfidDemo() {
           )}
         </div>
       )}
-      {notice && <div role="status" style={{ ...cardStyle, color: "#166534", background: "#f0fdf4" }}>{notice}</div>}
+      {notice && <div role="status" style={{ ...cardStyle, color: "var(--color-success)", background: "#f0fdf4" }}>{notice}</div>}
 
       <section style={cardStyle}>
         <h2 style={{ marginTop: 0 }}>1. Prepare the virtual room</h2>
@@ -286,7 +286,7 @@ export default function RfidDemo() {
               <ul style={{ paddingLeft: "20px", marginBottom: 0 }}>
                 {events.map((event, index) => (
                   <li key={`${event.occurred_at || "rejected"}-${index}`} style={{ marginBottom: "8px" }}>
-                    <strong style={{ color: event.accepted ? "#15803d" : "#b91c1c" }}>
+                    <strong style={{ color: event.accepted ? "var(--color-success)" : "var(--color-error)" }}>
                       {event.accepted ? "ACCEPTED" : "REJECTED"}
                     </strong>
                     {" · "}{event.event_type} · {event.student_name} — {event.message}

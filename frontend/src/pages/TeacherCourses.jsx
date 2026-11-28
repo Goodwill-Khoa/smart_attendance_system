@@ -375,12 +375,12 @@ export default function TeacherCourses({ user }) {
     {
       label: "RFID Schedules",
       onClick: () => navigate("/rfid-schedules"),
-      style: { background: "white", color: "#111827", border: "1px solid #d1d5db" }
+      style: { background: "white", color: "var(--color-text-primary)", border: "1px solid #d1d5db" }
     },
     {
       label: "Change Password",
       onClick: () => navigate("/teacher-password"),
-      style: { background: "white", color: "#111827", border: "1px solid #d1d5db" }
+      style: { background: "white", color: "var(--color-text-primary)", border: "1px solid #d1d5db" }
     },
     {
       label: "Logout",
@@ -400,12 +400,12 @@ export default function TeacherCourses({ user }) {
       </h2>
 
       {checkingPasswordPolicy && (
-        <p style={{ textAlign: "center", color: "#555", marginTop: 0, fontSize: "clamp(13px, 1.8vw, 15px)" }}>
+        <p style={{ textAlign: "center", color: "var(--color-text-secondary)", marginTop: 0, fontSize: "clamp(13px, 1.8vw, 15px)" }}>
           Checking password policy...
         </p>
       )}
 
-      <p style={{ textAlign: "center", color: "#666", marginBottom: "20px", fontSize: "clamp(13px, 1.8vw, 14px)" }}>
+      <p style={{ textAlign: "center", color: "var(--color-text-secondary)", marginBottom: "20px", fontSize: "clamp(13px, 1.8vw, 14px)" }}>
         Choose semester and course from dropdown.
       </p>
 
@@ -517,7 +517,7 @@ export default function TeacherCourses({ user }) {
       )}
 
       {loading ? (
-        <p style={{ textAlign: "center", color: "#666" }}>Loading courses...</p>
+        <p style={{ textAlign: "center", color: "var(--color-text-secondary)" }}>Loading courses...</p>
       ) : (
         <>
           <select
@@ -548,7 +548,7 @@ export default function TeacherCourses({ user }) {
               <div style={{ fontWeight: "bold", marginBottom: "6px", fontSize: "clamp(16px, 2.5vw, 18px)" }}>
                 {selectedCourse.name}
               </div>
-              <div style={{ fontSize: "clamp(12px, 1.8vw, 14px)", color: "#555", marginBottom: "12px" }}>
+              <div style={{ fontSize: "clamp(12px, 1.8vw, 14px)", color: "var(--color-text-secondary)", marginBottom: "12px" }}>
                 {selectedCourse.courseType || "L"}, {selectedCourse.code}
               </div>
               <button
@@ -559,7 +559,7 @@ export default function TeacherCourses({ user }) {
               </button>
 
               <div style={{ marginTop: "14px", borderTop: "1px solid #e5e7eb", paddingTop: "12px" }}>
-                <div style={{ fontSize: "clamp(12px, 1.8vw, 13px)", color: "#374151", marginBottom: "10px", fontWeight: 600 }}>
+                <div style={{ fontSize: "clamp(12px, 1.8vw, 13px)", color: "var(--color-text-secondary)", marginBottom: "10px", fontWeight: 600 }}>
                   📋 Upload Registered Students (CSV or XLSX)
                 </div>
                 <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center", marginBottom: "10px" }}>
@@ -585,14 +585,14 @@ export default function TeacherCourses({ user }) {
                   </button>
                 </div>
                 {rosterSummary && (
-                  <div style={{ marginTop: "8px", color: "#14532d", fontSize: "clamp(12px, 1.8vw, 13px)" }}>
+                  <div style={{ marginTop: "8px", color: "var(--color-success)", fontSize: "clamp(12px, 1.8vw, 13px)" }}>
                     ✅ {rosterSummary}
                   </div>
                 )}
               </div>
             </div>
           ) : (
-            <div style={{ fontSize: "clamp(13px, 1.8vw, 14px)", color: "#666", marginTop: "12px", textAlign: "center" }}>
+            <div style={{ fontSize: "clamp(13px, 1.8vw, 14px)", color: "var(--color-text-secondary)", marginTop: "12px", textAlign: "center" }}>
               Select a course to reveal details and start session.
             </div>
           )}
@@ -604,8 +604,8 @@ export default function TeacherCourses({ user }) {
           marginTop: "25px",
           padding: "16px",
           borderRadius: "14px",
-          background: "rgba(255,0,0,0.08)",
-          color: "red",
+          background: "#fef2f2",
+          color: "var(--color-error)",
           textAlign: "center",
           fontWeight: "bold",
           fontSize: "clamp(12px, 1.8vw, 14px)"

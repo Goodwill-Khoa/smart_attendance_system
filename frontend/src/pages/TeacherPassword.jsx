@@ -64,7 +64,7 @@ export default function TeacherPassword() {
       style: {
         border: "1px solid white",
         background: "rgba(0,0,0,0.35)",
-        color: "white",
+        color: "var(--color-text-inverse)",
       }
     }
   ];
@@ -74,9 +74,9 @@ export default function TeacherPassword() {
       headerTitle="Update Password"
       headerActions={headerActions}
       maxWidth="460px"
-      backgroundColor="rgba(0,0,0,0.25)"
+      backgroundColor="rgba(15,23,42,0.6)"
     >
-      <p style={{ color: "#4b5563", marginTop: 0, marginBottom: "18px", fontSize: "clamp(12px, 1.8vw, 14px)", textAlign: "center" }}>
+      <p style={{ color: "var(--color-text-secondary)", marginTop: 0, marginBottom: "18px", fontSize: "clamp(12px, 1.8vw, 14px)", textAlign: "center" }}>
         Change your password after login or after opening a reset email link.
       </p>
 
@@ -103,13 +103,13 @@ export default function TeacherPassword() {
       />
 
       {error && (
-        <p style={{ color: "#b91c1c", marginTop: 0, marginBottom: "10px", fontSize: "clamp(12px, 1.8vw, 14px)", textAlign: "center" }}>
+        <p style={{ color: "var(--color-error)", marginTop: 0, marginBottom: "10px", fontSize: "clamp(12px, 1.8vw, 14px)", textAlign: "center" }}>
           {error}
         </p>
       )}
 
       {infoMessage && (
-        <p style={{ color: "#166534", marginTop: 0, marginBottom: "10px", fontSize: "clamp(12px, 1.8vw, 14px)", textAlign: "center" }}>
+        <p style={{ color: "var(--color-success)", marginTop: 0, marginBottom: "10px", fontSize: "clamp(12px, 1.8vw, 14px)", textAlign: "center" }}>
           {infoMessage}
         </p>
       )}

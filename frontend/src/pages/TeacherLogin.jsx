@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../services/supabase";
+import { isLocalDemoAuth, supabase } from "../services/supabase";
 import BaseLayout, { responsiveInputStyle, responsiveButtonStyle } from "../components/BaseLayout";
 import { getApiBaseUrl } from "../services/apiBase";
 import { AUTH_ROLES, setAuthRole } from "../services/authRole";
@@ -98,7 +98,7 @@ export default function TeacherLogin() {
       style: {
         border: "1px solid white",
         background: "rgba(0,0,0,0.35)",
-        color: "white",
+        color: "var(--color-text-inverse)",
       }
     }
   ];
@@ -109,6 +109,11 @@ export default function TeacherLogin() {
       headerActions={headerActions}
       maxWidth="420px"
     >
+      {isLocalDemoAuth && (
+        <p role="status" style={{ color: "var(--color-success)", marginTop: 0, marginBottom: "14px", fontSize: "clamp(12px, 1.8vw, 14px)", textAlign: "center" }}>
+          Local demo sign-in: use deva@inf.elte.hu with password qwe123.
+        </p>
+      )}
       <input
         type="email"
         placeholder="Email"
@@ -132,13 +137,13 @@ export default function TeacherLogin() {
       />
 
       {error && (
-        <p style={{ color: "red", marginBottom: "10px", fontSize: "clamp(12px, 1.8vw, 14px)", textAlign: "center" }}>
+        <p style={{ color: "var(--color-error)", marginBottom: "10px", fontSize: "clamp(12px, 1.8vw, 14px)", textAlign: "center" }}>
           {error}
         </p>
       )}
 
       {infoMessage && (
-        <p style={{ color: "#166534", marginBottom: "10px", fontSize: "clamp(12px, 1.8vw, 14px)", textAlign: "center" }}>
+        <p style={{ color: "var(--color-success)", marginBottom: "10px", fontSize: "clamp(12px, 1.8vw, 14px)", textAlign: "center" }}>
           {infoMessage}
         </p>
       )}

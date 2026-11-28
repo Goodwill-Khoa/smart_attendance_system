@@ -127,7 +127,7 @@ export default function AuthCallback() {
         style={{
           marginBottom: "12px",
           fontSize: "clamp(22px, 4vw, 28px)",
-          color: "#111827",
+          color: "var(--color-text-primary)",
           fontWeight: 800,
           textAlign: "center",
         }}
@@ -138,7 +138,7 @@ export default function AuthCallback() {
       <p
         style={{
           marginBottom: "18px",
-          color: "#555",
+          color: "var(--color-text-secondary)",
           fontSize: "clamp(14px, 2.5vw, 16px)",
           textAlign: "center",
         }}

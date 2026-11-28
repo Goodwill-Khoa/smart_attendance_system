@@ -17,7 +17,7 @@ const buttonStyle = {
   border: 0,
   borderRadius: "8px",
   padding: "10px 14px",
-  color: "white",
+  color: "var(--color-text-inverse)",
   background: "#111827",
   fontWeight: 700,
   cursor: "pointer",
@@ -151,7 +151,7 @@ export default function RfidSchedules({ user }) {
     {
       label: "Teacher Dashboard",
       onClick: () => navigate("/teacher-courses"),
-      style: { background: "white", color: "#111827", border: "1px solid #d1d5db" },
+      style: { background: "white", color: "var(--color-text-primary)", border: "1px solid #d1d5db" },
     },
     ...(activeCourse
       ? [{
@@ -163,7 +163,7 @@ export default function RfidSchedules({ user }) {
               courseName: activeCourse.name,
             },
           }),
-          style: { background: "white", color: "#111827", border: "1px solid #d1d5db" },
+          style: { background: "white", color: "var(--color-text-primary)", border: "1px solid #d1d5db" },
         }]
       : []),
     { label: "Logout", onClick: handleLogout, style: { background: "black" } },
@@ -181,8 +181,20 @@ export default function RfidSchedules({ user }) {
         the schedule links your course to that room. Where an institution timetable feed is unavailable,
         lecturers can configure the recurring slot here.
       </p>
-      {error && <p role="alert" style={{ color: "#991b1b", fontWeight: 700 }}>{error}</p>}
-      {message && <p role="status" style={{ color: "#166534", fontWeight: 700 }}>{message}</p>}
+      {error && <p role="alert" style={{ color: "var(--color-error)", fontWeight: 700 }}>{error}</p>}
+      {message && <p role="status" style={{ color: "var(--color-success)", fontWeight: 700 }}>{message}</p>}
+
+      {!rooms.length && (
+        <div role="status" style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "12px", padding: "14px", marginBottom: "16px" }}>
+          <strong>No reader rooms are registered yet.</strong>
+          <p style={{ margin: "6px 0 12px", color: "var(--color-text-secondary)" }}>
+            For a hardware-free local test, prepare the virtual RFID demo to add a demo room and sample class slots.
+          </p>
+          <button type="button" onClick={() => navigate("/rfid-demo")} style={buttonStyle}>
+            Open virtual RFID demo
+          </button>
+        </div>
+      )}
 
       <form onSubmit={createSchedule} style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: "12px", padding: "16px" }}>
         <h3 style={{ marginTop: 0 }}>Create a weekly class slot</h3>
@@ -216,7 +228,7 @@ export default function RfidSchedules({ user }) {
             <input style={inputStyle} type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} required />
           </label>
         </div>
-        <p style={{ color: "#64748b", fontSize: "13px" }}>
+        <p style={{ color: "var(--color-text-secondary)", fontSize: "13px" }}>
           Each class register snapshots room occupants 15 minutes after its scheduled start. A student must remain for
           20 minutes from the scheduled start to avoid a Left early outcome.
         </p>

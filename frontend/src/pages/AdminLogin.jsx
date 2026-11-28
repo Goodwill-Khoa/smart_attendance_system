@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../services/supabase";
+import { isLocalDemoAuth, supabase } from "../services/supabase";
 import BaseLayout, { responsiveInputStyle, responsiveButtonStyle } from "../components/BaseLayout";
 import { getApiBaseUrl } from "../services/apiBase";
 import { AUTH_ROLES, setAuthRole } from "../services/authRole";
@@ -78,7 +78,7 @@ export default function AdminLogin() {
       style: {
         border: "1px solid white",
         background: "rgba(0,0,0,0.35)",
-        color: "white",
+        color: "var(--color-text-inverse)",
       }
     }
   ];
@@ -88,11 +88,18 @@ export default function AdminLogin() {
       headerTitle="Admin Login"
       headerActions={headerActions}
       maxWidth="420px"
-      backgroundColor="rgba(0,0,0,0.3)"
+      backgroundColor="rgba(15,23,42,0.6)"
     >
-      <p style={{ color: "#4b5563", fontSize: "clamp(13px, 1.8vw, 14px)", marginTop: 0, marginBottom: "18px", textAlign: "center" }}>
-        Uses the same Supabase username and password flow as the teacher login.
+      <p style={{ color: "var(--color-text-secondary)", fontSize: "clamp(13px, 1.8vw, 14px)", marginTop: 0, marginBottom: "18px", textAlign: "center" }}>
+        {isLocalDemoAuth
+          ? "Local demo sign-in uses the sample database account."
+          : "Uses the same Supabase username and password flow as the teacher login."}
       </p>
+      {isLocalDemoAuth && (
+        <p role="status" style={{ color: "var(--color-success)", fontSize: "13px", textAlign: "center" }}>
+          Sign in with superuser@inf.elte.hu and password admin123.
+        </p>
+      )}
 
       <input
         type="email"
@@ -117,13 +124,13 @@ export default function AdminLogin() {
       />
 
       {error && (
-        <p style={{ color: "red", marginBottom: "10px", fontSize: "clamp(12px, 1.8vw, 14px)", textAlign: "center" }}>
+        <p style={{ color: "var(--color-error)", marginBottom: "10px", fontSize: "clamp(12px, 1.8vw, 14px)", textAlign: "center" }}>
           {error}
         </p>
       )}
 
       {infoMessage && (
-        <p style={{ color: "#166534", marginBottom: "10px", fontSize: "clamp(12px, 1.8vw, 14px)", textAlign: "center" }}>
+        <p style={{ color: "var(--color-success)", marginBottom: "10px", fontSize: "clamp(12px, 1.8vw, 14px)", textAlign: "center" }}>
           {infoMessage}
         </p>
       )}

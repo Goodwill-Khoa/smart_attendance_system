@@ -15,7 +15,7 @@ const buttonStyle = {
   border: 0,
   borderRadius: "8px",
   padding: "10px 14px",
-  color: "white",
+  color: "var(--color-text-inverse)",
   background: "#111827",
   fontWeight: 700,
   cursor: "pointer",
@@ -176,10 +176,10 @@ export default function RfidReader() {
             </section>
           )}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px" }}>
-            <ReaderList title="Waiting" items={state?.waiting} statusColor="#9a6700" />
-            <ReaderList title="Present" items={state?.present} statusColor="#15803d" />
-            <ReaderList title="Late" items={state?.late} statusColor="#b45309" />
-            <ReaderList title="Left" items={state?.left} statusColor="#475569" />
+            <ReaderList title="Waiting" items={state?.waiting} statusColor="var(--color-warning)" />
+            <ReaderList title="Present" items={state?.present} statusColor="var(--color-success)" />
+            <ReaderList title="Late" items={state?.late} statusColor="var(--color-warning)" />
+            <ReaderList title="Left" items={state?.left} statusColor="var(--color-text-secondary)" />
           </div>
           <form onSubmit={submitTestTap} style={{ background: "white", borderRadius: "12px", padding: "16px", marginTop: "14px" }}>
             <h3 style={{ marginTop: 0 }}>Manual test tap</h3>
@@ -195,9 +195,9 @@ export default function RfidReader() {
           </form>
         </>
       )}
-      {error && <p role="alert" style={{ color: "#991b1b", fontWeight: 700 }}>{error}</p>}
-      {notice && <p role="status" style={{ color: "#166534", fontWeight: 700 }}>{notice}</p>}
-      <p style={{ color: "#64748b", fontSize: "12px" }}>
+      {error && <p role="alert" style={{ color: "var(--color-error)", fontWeight: 700 }}>{error}</p>}
+      {notice && <p role="status" style={{ color: "var(--color-success)", fontWeight: 700 }}>{notice}</p>}
+      <p style={{ color: "var(--color-text-secondary)", fontSize: "12px" }}>
         This page keeps the reader API key in this browser's local storage. Use a dedicated kiosk/device and disconnect before handing it to someone else.
       </p>
     </BaseLayout>

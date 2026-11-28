@@ -74,6 +74,14 @@ VITE_OAUTH_REDIRECT_URL=http://127.0.0.1:5173/auth/callback
 
 If the files do not exist yet, copy from `backend/.env.example` and `frontend/.env.example`.
 
+#### Supabase-free local dashboard demo
+
+To try the lecturer and superuser dashboards without configuring Supabase, use a local test database and enable local demo authentication. Set `LOCAL_DEMO_AUTH_ENABLED=true` and `DATABASE_URL=sqlite:///./attendance_test.db` in `backend/.env`, and set `VITE_LOCAL_DEMO_AUTH=true` and `VITE_API_BASE_URL=http://127.0.0.1:8000` in `frontend/.env`. Leave `SUPABASE_URL` empty in the backend. Restart both servers after changing the environment files. Local database files and credentials are intentionally not committed; use a local test database and its test accounts only.
+
+Local demo authentication is disabled by default and backend login accepts its tokens only when the feature is enabled and requests come from this computer. Bind the backend to `127.0.0.1`; never enable this mode on a hosted or network-accessible deployment. Local demo mode does not support OAuth or password changes.
+
+To try scheduled RFID without physical hardware, enable `RFID_SIMULATOR_ENABLED=true` and set `RFID_CREDENTIAL_HMAC_KEY` to a private value of at least 32 characters in `backend/.env`, then restart the backend. From the lecturer account, open `/rfid-demo` and click **Prepare / reset schedule demo**. This creates a virtual reader room and two sample class slots; `/rfid-schedules` will then list the room and slots. The simulator uses synthetic students and cards only.
+
 <div style="page-break-after: always"></div>
 
 2. Start the backend.

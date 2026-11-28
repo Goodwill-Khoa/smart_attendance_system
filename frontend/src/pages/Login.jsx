@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { supabase } from "../services/supabase";
+import { isLocalDemoAuth, supabase } from "../services/supabase";
 import BaseLayout, { responsiveInputStyle, responsiveButtonStyle } from "../components/BaseLayout";
 import { FcGoogle } from "react-icons/fc";
 import { FaMicrosoft } from "react-icons/fa";
@@ -136,7 +136,7 @@ export default function Login() {
       style: {
         border: "1px solid white",
         background: "rgba(0,0,0,0.35)",
-        color: "white",
+        color: "var(--color-text-inverse)",
       }
     }
   ];
@@ -151,7 +151,7 @@ export default function Login() {
         style={{
           marginBottom: "10px",
           fontSize: "clamp(22px, 4vw, 28px)",
-          color: "#111827",
+          color: "var(--color-text-primary)",
           fontWeight: 800,
           textAlign: "center",
         }}
@@ -162,13 +162,20 @@ export default function Login() {
       <p
         style={{
           marginBottom: "30px",
-          color: "#555",
+          color: "var(--color-text-secondary)",
           fontSize: "clamp(14px, 2.5vw, 16px)",
           textAlign: "center",
         }}
       >
-        Students normally use ELTE Microsoft SSO with an *.elte.hu email. Mental-access test accounts can also sign in with email/password using the default password qwe123.
+        {isLocalDemoAuth
+          ? "Local demo sign-in uses sample accounts and does not require Microsoft or Google."
+          : "Students normally use ELTE Microsoft SSO with an *.elte.hu email. Mental-access test accounts can also sign in with email/password using the default password qwe123."}
       </p>
+      {isLocalDemoAuth && (
+        <p role="status" style={{ color: "var(--color-success)", marginBottom: "14px", fontSize: "13px", textAlign: "center" }}>
+          Sign in with student1@inf.elte.hu and password qwe123.
+        </p>
+      )}
 
       {/* Google Login */}
       <button
@@ -179,7 +186,7 @@ export default function Login() {
           borderRadius: "12px",
           border: "1px solid #ddd",
           background: "white",
-          color: "#111827",
+          color: "var(--color-text-primary)",
           fontWeight: 600,
           cursor: "pointer",
           fontSize: "clamp(14px, 2vw, 16px)",
@@ -205,7 +212,7 @@ export default function Login() {
           borderRadius: "12px",
           border: "none",
           background: azureEnabled ? "#2F2F2F" : "#9ca3af",
-          color: "white",
+          color: "var(--color-text-inverse)",
           cursor: azureEnabled ? "pointer" : "not-allowed",
           fontSize: "clamp(14px, 2vw, 16px)",
           opacity: azureEnabled ? 1 : 0.85,
@@ -223,7 +230,7 @@ export default function Login() {
       <div
         style={{
           margin: "18px 0 10px",
-          color: "#777",
+          color: "var(--color-text-secondary)",
           fontSize: "clamp(12px, 1.8vw, 13px)",
           textAlign: "center",
         }}
@@ -263,7 +270,7 @@ export default function Login() {
       </button>
 
       {error && (
-        <p style={{ color: "#b00020", marginTop: "12px", fontSize: "clamp(12px, 1.8vw, 14px)", textAlign: "center" }}>
+        <p style={{ color: "var(--color-error)", marginTop: "12px", fontSize: "clamp(12px, 1.8vw, 14px)", textAlign: "center" }}>
           {error}
         </p>
       )}

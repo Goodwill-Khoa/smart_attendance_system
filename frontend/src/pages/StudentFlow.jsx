@@ -28,7 +28,7 @@ export default function StudentFlow({ user }) {
         Student Flow: 3-Second Check-In
       </h2>
 
-      <p style={{ textAlign: "center", color: "#4a5878", marginTop: 0, marginBottom: "25px", fontSize: "clamp(13px, 1.8vw, 15px)" }}>
+      <p style={{ textAlign: "center", color: "var(--color-text-secondary)", marginTop: 0, marginBottom: "25px", fontSize: "clamp(13px, 1.8vw, 15px)" }}>
         Scan projected QR • ELTE Microsoft SSO • No app install
       </p>
 
@@ -83,7 +83,7 @@ export default function StudentFlow({ user }) {
           padding: "14px",
           borderRadius: "12px",
           background: "rgba(122, 29, 29, 0.1)",
-          color: "#7a1d1d",
+          color: "var(--color-error)",
           fontSize: "clamp(12px, 1.8vw, 14px)",
           textAlign: "center"
         }}>
@@ -110,7 +110,7 @@ function StepCard({ index, title, text }) {
         {index}. {title}
       </div>
       <div style={{
-        color: "#566281",
+        color: "var(--color-text-secondary)",
         fontSize: "clamp(12px, 1.8vw, 14px)"
       }}>
         {text}

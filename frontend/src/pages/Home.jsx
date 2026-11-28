@@ -27,7 +27,7 @@ export default function Home() {
         position: "absolute",
         width: "100%",
         height: "100%",
-        background: "linear-gradient(rgba(0,0,0,0.05), rgba(0,0,0,0.4))",
+        background: "linear-gradient(rgba(15,23,42,0.6), rgba(15,23,42,0.72))",
         pointerEvents: "none"
       }} />
 
@@ -37,7 +37,7 @@ export default function Home() {
         display: "flex",
         flexDirection: "column",
         minHeight: "100vh",
-        color: "white"
+        color: "var(--color-text-inverse)"
       }}>
         {/* Header Navigation */}
         <div style={{
@@ -56,21 +56,21 @@ export default function Home() {
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
             <button
               onClick={() => navigate("/admin-login")}
-              style={{ ...buttonStyle("#131313", "white", "1px solid #131313") }}
+              style={{ ...buttonStyle("#131313", "var(--color-text-inverse)", "1px solid #131313") }}
             >
               Admin
             </button>
 
             <button
               onClick={() => navigate("/teacher-login")}
-              style={{ ...buttonStyle("transparent", "white", "1px solid white") }}
+              style={{ ...buttonStyle("transparent", "var(--color-text-inverse)", "1px solid white") }}
             >
               Teacher
             </button>
 
             <button
               onClick={() => navigate("/login")}
-              style={{ ...buttonStyle("white", "black") }}
+              style={{ ...buttonStyle("white", "var(--color-text-primary)") }}
             >
               Student
             </button>
@@ -92,6 +92,7 @@ export default function Home() {
             fontSize: "clamp(28px, 6vw, 72px)",
             fontWeight: "bold",
             textAlign: "center",
+            color: "var(--color-text-inverse)",
             margin: 0,
             position: "absolute",
             top: "12%",

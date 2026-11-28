@@ -85,14 +85,14 @@ export default function StudentCourses({ user }) {
         My Courses
       </h2>
 
-      <p style={{ textAlign: "center", color: "#666", marginBottom: "35px", fontSize: "clamp(13px, 1.8vw, 14px)" }}>
+      <p style={{ textAlign: "center", color: "var(--color-text-secondary)", marginBottom: "35px", fontSize: "clamp(13px, 1.8vw, 14px)" }}>
         Click on a course to scan attendance if a session is active.
       </p>
 
       {loading ? (
-        <p style={{ textAlign: "center", color: "#666" }}>Loading courses...</p>
+        <p style={{ textAlign: "center", color: "var(--color-text-secondary)" }}>Loading courses...</p>
       ) : courses.length === 0 ? (
-        <p style={{ textAlign: "center", color: "#999", marginTop: "30px" }}>
+        <p style={{ textAlign: "center", color: "var(--color-text-secondary)", marginTop: "30px" }}>
           No courses assigned yet. Contact your instructor.
         </p>
       ) : (
@@ -107,7 +107,7 @@ export default function StudentCourses({ user }) {
                 border: "none",
                 cursor: "pointer",
                 background: course.active ? "black" : "rgba(0,0,0,0.1)",
-                color: course.active ? "white" : "#333",
+                color: course.active ? "var(--color-text-inverse)" : "var(--color-text-primary)",
                 transition: "0.2s",
                 textAlign: "left",
               }}
@@ -128,8 +128,8 @@ export default function StudentCourses({ user }) {
           marginTop: "25px",
           padding: "16px",
           borderRadius: "14px",
-          background: "rgba(255,0,0,0.08)",
-          color: "red",
+          background: "#fef2f2",
+          color: "var(--color-error)",
           textAlign: "center",
           fontWeight: "bold",
           fontSize: "clamp(12px, 1.8vw, 14px)",

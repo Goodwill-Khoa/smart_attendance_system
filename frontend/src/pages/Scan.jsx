@@ -204,7 +204,7 @@ export default function Scan({ user }) {
         textAlign: "center",
         marginTop: 0,
         marginBottom: "16px",
-        color: "#4b5563",
+        color: "var(--color-text-secondary)",
         fontSize: "clamp(12px, 1.8vw, 14px)"
       }}>
         {courseName ? `Active course: ${courseName}` : "Active session scanner"}
@@ -215,7 +215,7 @@ export default function Scan({ user }) {
           marginBottom: "14px",
           border: "1px solid #fecaca",
           background: "#fef2f2",
-          color: "#991b1b",
+          color: "var(--color-error)",
           borderRadius: "12px",
           padding: "clamp(10px, 2vw, 14px)",
           fontWeight: 700,
@@ -228,7 +228,7 @@ export default function Scan({ user }) {
 
       <p style={{
         marginBottom: "20px",
-        color: "#555",
+        color: "var(--color-text-secondary)",
         textAlign: "center",
         fontSize: "clamp(12px, 1.8vw, 14px)"
       }}>
@@ -248,7 +248,7 @@ export default function Scan({ user }) {
 
       <style>{`
         #reader {
-          color: #1f2937;
+          color: var(--color-text-primary);
         }
 
         #reader video {
@@ -270,14 +270,14 @@ export default function Scan({ user }) {
 
         #reader button,
         #reader select {
-          color: #1f2937 !important;
+          color: var(--color-text-primary) !important;
           font-size: clamp(12px, 1.8vw, 14px) !important;
         }
       `}</style>
 
       {result && (
         <p style={{
-          color: status === "error" ? "red" : status === "success" ? "green" : "#555",
+          color: status === "error" ? "var(--color-error)" : status === "success" ? "var(--color-success)" : "var(--color-text-secondary)",
           fontWeight: "bold",
           textAlign: "center",
           fontSize: "clamp(12px, 1.8vw, 14px)",

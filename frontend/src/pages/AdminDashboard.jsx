@@ -376,18 +376,18 @@ export default function AdminDashboard() {
   }, []);
 
   if (authChecking) {
-    return <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#f4f4ef", color: "#374151", fontWeight: 600 }}>Checking admin access...</div>;
+    return <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#f4f4ef", color: "var(--color-text-secondary)", fontWeight: 600 }}>Checking admin access...</div>;
   }
 
   const headerActions = [
-    { label: "Home", onClick: () => navigate("/home"), style: { background: "white", color: "#1f2937", border: "1px solid #cbd5e1" } },
+    { label: "Home", onClick: () => navigate("/home"), style: { background: "white", color: "var(--color-text-primary)", border: "1px solid #cbd5e1" } },
     { label: "Logout", onClick: handleLogout, style: { background: "#111827" } }
   ];
 
   return (
     <div style={{ minHeight: "100vh", background: "linear-gradient(180deg, #f4f4ef 0%, #e9efe9 100%)", overflowX: "hidden" }}>
       <div style={{ position: "relative", zIndex: 10 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", padding: "clamp(16px, 3vw, 30px) 5vw", color: "white", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", padding: "clamp(16px, 3vw, 30px) 5vw", color: "var(--color-text-primary)", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
           <div style={{ fontSize: "clamp(18px, 4vw, 24px)", fontWeight: "bold" }}>Super User Panel</div>
           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
             {headerActions.map((action, i) => (
@@ -403,17 +403,17 @@ export default function AdminDashboard() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
               <div>
                 <h1 style={{ marginTop: 0, marginBottom: "8px", fontSize: "clamp(22px, 4vw, 28px)" }}>Dashboard</h1>
-                <p style={{ color: "#666", marginTop: 0, fontSize: "clamp(13px, 2vw, 14px)" }}>Backend monitoring & lecturer management</p>
-                {adminIdentity?.email && <div style={{ color: "#4b5563", fontSize: "clamp(12px, 1.8vw, 13px)" }}>Signed in as {adminIdentity.email}</div>}
+                <p style={{ color: "var(--color-text-secondary)", marginTop: 0, fontSize: "clamp(13px, 2vw, 14px)" }}>Backend monitoring & lecturer management</p>
+                {adminIdentity?.email && <div style={{ color: "var(--color-text-secondary)", fontSize: "clamp(12px, 1.8vw, 13px)" }}>Signed in as {adminIdentity.email}</div>}
               </div>
               <button onClick={loadDashboard} disabled={loading} style={{ ...responsiveButtonStyle("#1f2a37", "white"), whiteSpace: "nowrap", fontWeight: 600 }}>
                 {loading ? "Refreshing..." : "Refresh"}
               </button>
             </div>
 
-            {error && <div style={{ background: "#ffe9e9", color: "#8c1111", borderRadius: "10px", padding: "12px", marginBottom: "14px", fontSize: "clamp(12px, 1.8vw, 14px)" }}>❌ {error}</div>}
-            {successMessage && <div style={{ background: "#e7f8ea", color: "#14532d", borderRadius: "10px", padding: "12px", marginBottom: "14px", fontSize: "clamp(12px, 1.8vw, 14px)" }}>✅ {successMessage}</div>}
-            {latestTempPassword && <div style={{ background: "#fff8db", color: "#7a4e00", borderRadius: "10px", padding: "12px", marginBottom: "14px", border: "1px solid #f0cf79", fontSize: "clamp(12px, 1.8vw, 14px)" }}>Temp Password: <b>{latestTempPassword}</b></div>}
+            {error && <div style={{ background: "#ffe9e9", color: "var(--color-error)", borderRadius: "10px", padding: "12px", marginBottom: "14px", fontSize: "clamp(12px, 1.8vw, 14px)" }}>❌ {error}</div>}
+            {successMessage && <div style={{ background: "#e7f8ea", color: "var(--color-success)", borderRadius: "10px", padding: "12px", marginBottom: "14px", fontSize: "clamp(12px, 1.8vw, 14px)" }}>✅ {successMessage}</div>}
+            {latestTempPassword && <div style={{ background: "#fff8db", color: "var(--color-warning)", borderRadius: "10px", padding: "12px", marginBottom: "14px", border: "1px solid #f0cf79", fontSize: "clamp(12px, 1.8vw, 14px)" }}>Temp Password: <b>{latestTempPassword}</b></div>}
 
             {overview && (
               <div style={{ ...mobileGridStyle("120px"), marginBottom: "20px", gap: "12px" }}>
@@ -430,18 +430,18 @@ export default function AdminDashboard() {
                 <h3 style={{ marginTop: 0, marginBottom: "8px", fontSize: "clamp(16px, 3vw, 18px)" }}>Semester database</h3>
                 {semesterDatabase.supported ? (
                   <>
-                    <p style={{ color: "#4b5563", fontSize: "clamp(12px, 1.8vw, 14px)" }}>
+                    <p style={{ color: "var(--color-text-secondary)", fontSize: "clamp(12px, 1.8vw, 14px)" }}>
                       Active: <strong>{semesterDatabase.active_semester || "Unassigned"}</strong>
                       {semesterDatabase.active_database ? ` · ${semesterDatabase.active_database}` : ""}
                     </p>
-                    <p style={{ color: "#4b5563", fontSize: "clamp(12px, 1.8vw, 14px)" }}>
+                    <p style={{ color: "var(--color-text-secondary)", fontSize: "clamp(12px, 1.8vw, 14px)" }}>
                       Archived databases remain preserved and are not connected to the active app.
                       {semesterDatabase.archived_semesters?.length
                         ? ` Archives: ${semesterDatabase.archived_semesters.join(", ")}.`
                         : ""}
                     </p>
                     {semesterDatabase.active_session_count > 0 && (
-                      <p role="alert" style={{ color: "#991b1b", fontWeight: 700, fontSize: "clamp(12px, 1.8vw, 14px)" }}>
+                      <p role="alert" style={{ color: "var(--color-error)", fontWeight: 700, fontSize: "clamp(12px, 1.8vw, 14px)" }}>
                         End {semesterDatabase.active_session_count} active session(s) before switching.
                       </p>
                     )}
@@ -459,7 +459,7 @@ export default function AdminDashboard() {
                     </p>
                     <div style={{ display: "grid", gap: "6px", maxHeight: "220px", overflowY: "auto", padding: "8px", background: "white", border: "1px solid #d8dee6", borderRadius: "8px", marginBottom: "12px" }}>
                       {semesterDatabase.courses?.map((course) => (
-                        <label key={course.id} style={{ display: "flex", alignItems: "center", gap: "8px", color: "#374151", fontSize: "clamp(12px, 1.8vw, 14px)" }}>
+                        <label key={course.id} style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--color-text-secondary)", fontSize: "clamp(12px, 1.8vw, 14px)" }}>
                           <input
                             type="checkbox"
                             checked={selectedSemesterCourseIds.includes(course.id)}
@@ -478,7 +478,7 @@ export default function AdminDashboard() {
                     </button>
                   </>
                 ) : (
-                  <p style={{ marginBottom: 0, color: "#7c2d12", fontSize: "clamp(12px, 1.8vw, 14px)" }}>
+                  <p style={{ marginBottom: 0, color: "var(--color-warning)", fontSize: "clamp(12px, 1.8vw, 14px)" }}>
                     Per-semester database switching is enabled only for local file-based SQLite. This PostgreSQL deployment is unchanged.
                   </p>
                 )}
@@ -496,13 +496,13 @@ export default function AdminDashboard() {
                     <button onClick={handleAddLecturer} style={{ ...responsiveButtonStyle("#1d4ed8", "white"), border: "none", whiteSpace: "nowrap" }}>Add Lecturer</button>
                   </div>
 
-                  <label style={{ display: "flex", alignItems: "center", gap: "8px", color: "#374151", fontSize: "clamp(12px, 1.8vw, 14px)", marginBottom: "14px" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--color-text-secondary)", fontSize: "clamp(12px, 1.8vw, 14px)", marginBottom: "14px" }}>
                     <input type="checkbox" checked={newLecturerIsAdmin} onChange={(e) => setNewLecturerIsAdmin(e.target.checked)} />
                     Grant admin access
                   </label>
 
                   {lecturers.length === 0 ? (
-                    <p style={{ margin: 0, color: "#555", fontSize: "clamp(12px, 1.8vw, 14px)" }}>No lecturers yet.</p>
+                    <p style={{ margin: 0, color: "var(--color-text-secondary)", fontSize: "clamp(12px, 1.8vw, 14px)" }}>No lecturers yet.</p>
                   ) : (
                     <>
                       <select value={selectedLecturerId} onChange={(e) => setSelectedLecturerId(e.target.value)} style={{ ...responsiveInputStyle, width: "100%", marginBottom: "12px" }}>
@@ -513,10 +513,10 @@ export default function AdminDashboard() {
 
                       {selectedLecturer && (
                         <div style={{ border: "1px solid #dbe4ee", borderRadius: "10px", padding: "12px", background: "white" }}>
-                          <div style={{ fontWeight: 700, color: "#1f2937", fontSize: "clamp(13px, 2vw, 15px)", marginBottom: "6px" }}>{selectedLecturer.fullName || selectedLecturer.name}</div>
-                          <div style={{ color: "#4b5563", fontSize: "clamp(12px, 1.8vw, 13px)", marginBottom: "4px" }}>{selectedLecturer.title || "Lecturer"}</div>
-                          <div style={{ color: "#4b5563", fontSize: "clamp(12px, 1.8vw, 13px)" }}>{selectedLecturer.email}</div>
-                          <div style={{ color: "#4b5563", fontSize: "clamp(11px, 1.8vw, 12px)", marginTop: "8px" }}>Admin: {selectedLecturer.isAdmin ? "✅ Enabled" : "❌ Disabled"}</div>
+                          <div style={{ fontWeight: 700, color: "var(--color-text-primary)", fontSize: "clamp(13px, 2vw, 15px)", marginBottom: "6px" }}>{selectedLecturer.fullName || selectedLecturer.name}</div>
+                          <div style={{ color: "var(--color-text-secondary)", fontSize: "clamp(12px, 1.8vw, 13px)", marginBottom: "4px" }}>{selectedLecturer.title || "Lecturer"}</div>
+                          <div style={{ color: "var(--color-text-secondary)", fontSize: "clamp(12px, 1.8vw, 13px)" }}>{selectedLecturer.email}</div>
+                          <div style={{ color: "var(--color-text-secondary)", fontSize: "clamp(11px, 1.8vw, 12px)", marginTop: "8px" }}>Admin: {selectedLecturer.isAdmin ? "✅ Enabled" : "❌ Disabled"}</div>
 
                           <div style={{ display: "flex", gap: "10px", marginTop: "12px", flexWrap: "wrap" }}>
                             <button onClick={() => handleSetLecturerAdminAccess(!selectedLecturer.isAdmin)} style={{ ...responsiveButtonStyle(selectedLecturer.isAdmin ? "#475569" : "#1d4ed8", "white"), border: "none", whiteSpace: "nowrap", fontSize: "clamp(11px, 1.8vw, 13px)", padding: "clamp(6px, 1.5vw, 8px) clamp(8px, 1.5vw, 12px)" }}>
@@ -532,13 +532,13 @@ export default function AdminDashboard() {
 
                 <h3 style={{ marginBottom: "12px", fontSize: "clamp(16px, 3vw, 18px)" }}>Password Requests</h3>
                 {passwordRequests.length === 0 ? (
-                  <p style={{ color: "#555", marginTop: 0, fontSize: "clamp(12px, 1.8vw, 14px)" }}>No requests.</p>
+                  <p style={{ color: "var(--color-text-secondary)", marginTop: 0, fontSize: "clamp(12px, 1.8vw, 14px)" }}>No requests.</p>
                 ) : (
                   <div style={{ display: "grid", gap: "10px", marginBottom: "18px" }}>
                     {passwordRequests.map((item) => (
                       <div key={item.id} style={{ border: "1px solid #ddd", borderRadius: "10px", padding: "12px", background: "#fff" }}>
                         <div style={{ fontWeight: 700, fontSize: "clamp(13px, 2vw, 14px)" }}>{item.lecturerName || "Lecturer"}</div>
-                        <div style={{ color: "#4b5563", fontSize: "clamp(12px, 1.8vw, 13px)" }}>{item.lecturerEmail}</div>
+                        <div style={{ color: "var(--color-text-secondary)", fontSize: "clamp(12px, 1.8vw, 13px)" }}>{item.lecturerEmail}</div>
                         {item.status === "PENDING" && <button onClick={() => handleIssueTempPassword(item.id)} style={{ ...responsiveButtonStyle("#1f6f3f", "white"), marginTop: "8px", border: "none", fontSize: "clamp(11px, 1.8vw, 13px)", padding: "clamp(6px, 1.5vw, 8px) clamp(8px, 1.5vw, 12px)" }}>Issue Temp Password</button>}
                       </div>
                     ))}
@@ -550,20 +550,20 @@ export default function AdminDashboard() {
             <h3 style={{ marginBottom: "12px", marginTop: "18px", fontSize: "clamp(16px, 3vw, 18px)" }}>Active Sessions</h3>
             {canManageLecturers && (
               <div style={{ border: "1px solid #f3b2b2", borderRadius: "12px", background: "#fff3f3", padding: "12px", marginBottom: "14px" }}>
-                <div style={{ fontWeight: 700, color: "#9f1239", marginBottom: "8px", fontSize: "clamp(13px, 2vw, 15px)" }}>🚨 Emergency Protocol</div>
+                <div style={{ fontWeight: 700, color: "var(--color-error)", marginBottom: "8px", fontSize: "clamp(13px, 2vw, 15px)" }}>🚨 Emergency Protocol</div>
                 <textarea value={emergencyComment} onChange={(e) => setEmergencyComment(e.target.value)} placeholder="Emergency message for all sessions" rows={2} style={{ width: "100%", border: "1px solid #d4d4d8", borderRadius: "8px", padding: "10px", marginBottom: "10px", fontSize: "clamp(12px, 1.8vw, 14px)", fontFamily: "monospace", resize: "vertical" }} />
                 <button onClick={handleEndAllSessions} style={{ ...responsiveButtonStyle("#b91c1c", "white"), width: "100%", border: "none", fontWeight: 700 }}>End All Sessions</button>
               </div>
             )}
 
             {activeSessions.length === 0 ? (
-              <p style={{ color: "#555", fontSize: "clamp(12px, 1.8vw, 14px)" }}>No active sessions.</p>
+              <p style={{ color: "var(--color-text-secondary)", fontSize: "clamp(12px, 1.8vw, 14px)" }}>No active sessions.</p>
             ) : (
               <div style={{ display: "grid", gap: "10px", marginBottom: "18px" }}>
                 {activeSessions.map((item) => (
                   <div key={item.sessionId} style={{ border: "1px solid #ddd", borderRadius: "10px", padding: "12px", background: "#fafafa" }}>
                     <div style={{ fontWeight: "bold", fontSize: "clamp(13px, 2vw, 14px)" }}>{item.courseName}</div>
-                    <div style={{ color: "#666", fontSize: "clamp(12px, 1.8vw, 13px)" }}>{item.courseCode} • {item.semester}</div>
+                    <div style={{ color: "var(--color-text-secondary)", fontSize: "clamp(12px, 1.8vw, 13px)" }}>{item.courseCode} • {item.semester}</div>
                   </div>
                 ))}
               </div>
@@ -573,14 +573,14 @@ export default function AdminDashboard() {
               <>
                 <h3 style={{ marginTop: "18px", marginBottom: "12px", fontSize: "clamp(16px, 3vw, 18px)" }}>Course Requests</h3>
                 {courseRequests.length === 0 ? (
-                  <p style={{ color: "#555", fontSize: "clamp(12px, 1.8vw, 14px)" }}>No pending requests.</p>
+                  <p style={{ color: "var(--color-text-secondary)", fontSize: "clamp(12px, 1.8vw, 14px)" }}>No pending requests.</p>
                 ) : (
                   <div style={{ display: "grid", gap: "10px" }}>
                     {courseRequests.map((item) => (
                       <div key={item.id} style={{ border: "1px solid #ddd", borderRadius: "10px", padding: "12px", background: "#fafafa" }}>
                         <div style={{ fontWeight: "bold", fontSize: "clamp(13px, 2vw, 14px)" }}>{item.name} ({item.courseType})</div>
-                        <div style={{ color: "#666", fontSize: "clamp(12px, 1.8vw, 13px)", marginBottom: "8px" }}>{item.code || "No code"} • {item.semester}</div>
-                        <div style={{ color: "#666", fontSize: "clamp(11px, 1.8vw, 12px)", marginBottom: "8px" }}>By: {item.teacherEmail}</div>
+                        <div style={{ color: "var(--color-text-secondary)", fontSize: "clamp(12px, 1.8vw, 13px)", marginBottom: "8px" }}>{item.code || "No code"} • {item.semester}</div>
+                        <div style={{ color: "var(--color-text-secondary)", fontSize: "clamp(11px, 1.8vw, 12px)", marginBottom: "8px" }}>By: {item.teacherEmail}</div>
                         {item.status === "PENDING" && (
                           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                             <button onClick={() => approveRequest(item.id)} style={{ ...responsiveButtonStyle("#1f6f3f", "white"), border: "none", fontSize: "clamp(11px, 1.8vw, 13px)", padding: "clamp(6px, 1.5vw, 8px) clamp(8px, 1.5vw, 12px)" }}>Approve</button>
@@ -603,8 +603,8 @@ export default function AdminDashboard() {
 function StatCard({ title, value }) {
   return (
     <div style={{ border: "1px solid #ddd", borderRadius: "10px", padding: "12px", background: "#fafafa", textAlign: "center" }}>
-      <div style={{ color: "#666", fontSize: "clamp(11px, 1.8vw, 12px)", marginBottom: "6px" }}>{title}</div>
-      <div style={{ fontSize: "clamp(18px, 4vw, 24px)", fontWeight: "bold", color: "#1f2937" }}>{value}</div>
+      <div style={{ color: "var(--color-text-secondary)", fontSize: "clamp(11px, 1.8vw, 12px)", marginBottom: "6px" }}>{title}</div>
+      <div style={{ fontSize: "clamp(18px, 4vw, 24px)", fontWeight: "bold", color: "var(--color-text-primary)" }}>{value}</div>
     </div>
   );
 }
